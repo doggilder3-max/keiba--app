@@ -62,22 +62,32 @@ document.getElementById("date").valueAsDate = new Date();
 
 let chart;
 
-// ★ 月リスト生成（1回だけ）
+// =======================
+// 月選択初期化
+// =======================
 function initMonthSelect(){
-  let select = document.getElementById("monthSelect");
-  let months = [...new Set(data.map(d=>d.date.slice(0,7)))].sort().reverse();
+  const select = document.getElementById("monthSelect");
 
-  select.innerHTML = months.map(m=>`<option value="${m}">${m}</option>`).join("");
+  let months = [...new Set(data.map(d => d.date.slice(0,7)))]
+    .sort()
+    .reverse();
 
-  // 今月を初期選択
-  let now = new Date().toISOString().slice(0,7);
-  if(months.includes(now)){
-    select.value = now;
-  }
+  const now = new Date().toISOString().slice(0,7);
+
+  if(!months.includes(now)) months.unshift(now);
+
+  select.innerHTML = months.map(m =>
+    `<option value="${m}">${m}</option>`
+  ).join("");
+
+  select.value = now;
 
   select.onchange = update;
 }
 
+// =======================
+// データ追加（ID付与）
+// =======================
 function addData(){
   let date = document.getElementById("date").value;
   let bet = Number(document.getElementById("bet").value);
@@ -85,34 +95,48 @@ function addData(){
 
   if(!bet && !win) return;
 
-  data.push({date, bet, win});
+  data.push({
+    id: Date.now(),   // ★ここが重要（ID）
+    date,
+    bet,
+    win
+  });
+
   localStorage.setItem("keiba", JSON.stringify(data));
 
   document.getElementById("bet").value = "";
   document.getElementById("win").value = "";
 
-  initMonthSelect(); // ★ ここ重要
+  initMonthSelect();
   update();
 }
 
-function deleteData(i){
-  data.splice(i,1);
+// =======================
+// 削除（IDで安全削除）
+// =======================
+function deleteData(id){
+  data = data.filter(d => d.id !== id);
   localStorage.setItem("keiba", JSON.stringify(data));
-  initMonthSelect(); // ★ ここ重要
+
+  initMonthSelect();
   update();
 }
 
+// =======================
+// 全体更新
+// =======================
 function update(){
+
   let totalBet = data.reduce((a,b)=>a+b.bet,0);
   let totalWin = data.reduce((a,b)=>a+b.win,0);
 
   document.getElementById("totalBet").textContent = totalBet;
   document.getElementById("totalWin").textContent = totalWin;
-  document.getElementById("profit").textContent = totalWin-totalBet;
+  document.getElementById("profit").textContent = totalWin - totalBet;
   document.getElementById("rate").textContent =
     totalBet ? ((totalWin/totalBet)*100).toFixed(1) : 0;
 
-  let month = document.getElementById("monthSelect").value;
+  let month = document.getElementById("monthSelect").value || new Date().toISOString().slice(0,7);
 
   let monthData = data.filter(d => d.date.startsWith(month));
 
@@ -129,40 +153,54 @@ function update(){
   drawHistory(monthData);
 }
 
+// =======================
+// グラフ
+// =======================
 function drawChart(monthData){
   let labels = monthData.map(d=>d.date);
-  let profits = monthData.map(d=>d.win-d.bet);
+  let profits = monthData.map(d=>d.win - d.bet);
 
   if(chart) chart.destroy();
 
   chart = new Chart(document.getElementById("chart"), {
     type: "bar",
     data: {
-      labels: labels,
-      datasets: [{ label:"収支", data: profits }]
+      labels,
+      datasets: [{
+        label: "収支",
+        data: profits
+      }]
     }
   });
 }
 
+// =======================
+// 履歴表示（IDベース削除）
+// =======================
 function drawHistory(monthData){
   let html = "";
+
   monthData.slice().reverse().forEach(d=>{
-    let profit = d.win-d.bet;
-    let cls = profit>=0?"win":"lose";
+    let profit = d.win - d.bet;
+    let cls = profit >= 0 ? "win" : "lose";
 
     html += `
-    <div>
-      ${d.date} / ${profit}円
-      <button onclick="deleteData(${data.indexOf(d)})">削除</button>
-    </div>`;
+      <div class="${cls}">
+        ${d.date} / ${profit}円
+        <button onclick="deleteData(${d.id})">削除</button>
+      </div>
+    `;
   });
 
   document.getElementById("history").innerHTML = html;
 }
 
+// =======================
 // 初期化
+// =======================
 initMonthSelect();
 update();
+
 </script>
 
 </body>
