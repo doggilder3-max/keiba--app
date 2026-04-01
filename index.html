@@ -9,8 +9,7 @@
 <style>
 body { font-family:sans-serif; background:#f5f5f5; padding:15px; }
 .card { background:#fff; padding:15px; margin:10px 0; border-radius:10px; }
-input, select, button { padding:8px; margin:5px; }
-button { cursor:pointer; }
+input, select, button { padding:8px; margin:5px; cursor:pointer; }
 
 #userInfo { font-weight:bold; margin:10px 0; }
 
@@ -27,12 +26,12 @@ button { cursor:pointer; }
 
 <button id="loginBtn">Googleログイン</button>
 <button id="anonBtn">匿名ログイン</button>
+<button id="logoutBtn" style="display:none;">ログアウト</button>
 
 <div class="card">
   <h3>収支入力</h3>
 
   <input id="date" type="date">
-
   <input id="bet" type="number" placeholder="投資額">
   <input id="pay" type="number" placeholder="回収額">
 
@@ -62,11 +61,13 @@ button { cursor:pointer; }
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+
 import {
   getAuth,
   signInWithPopup,
   GoogleAuthProvider,
   signInAnonymously,
+  signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
@@ -96,29 +97,57 @@ let currentUser = null;
 let chartInstance = null;
 
 // =====================
+// ボタン
+// =====================
+const loginBtn = document.getElementById("loginBtn");
+const anonBtn = document.getElementById("anonBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+
+// =====================
 // ログイン
 // =====================
-document.getElementById("loginBtn").onclick = () => {
+loginBtn.onclick = () => {
   signInWithPopup(auth, new GoogleAuthProvider());
 };
 
-document.getElementById("anonBtn").onclick = () => {
+anonBtn.onclick = () => {
   signInAnonymously(auth);
 };
 
 // =====================
-// 状態監視
+// ログアウト（追加）
+// =====================
+logoutBtn.onclick = () => {
+  signOut(auth);
+};
+
+// =====================
+// 状態監視（超重要）
 // =====================
 onAuthStateChanged(auth, (user) => {
   currentUser = user;
 
+  const info = document.getElementById("userInfo");
+
   if (user) {
-    document.getElementById("userInfo").innerText =
-      "ログイン中：" + user.uid;
+
+    let type = user.isAnonymous ? "匿名ログイン" : "Googleログイン";
+
+    info.innerText = `ログイン中（${type}）：${user.uid}`;
+
+    loginBtn.style.display = "none";
+    anonBtn.style.display = "none";
+    logoutBtn.style.display = "inline-block";
 
     loadData();
+
   } else {
-    document.getElementById("userInfo").innerText = "未ログイン";
+
+    info.innerText = "未ログイン";
+
+    loginBtn.style.display = "inline-block";
+    anonBtn.style.display = "inline-block";
+    logoutBtn.style.display = "none";
   }
 });
 
@@ -151,6 +180,8 @@ document.getElementById("saveBtn").onclick = async () => {
 // =====================
 async function loadData() {
 
+  if (!currentUser) return;
+
   const q = query(collection(db, "bets"), orderBy("createdAt", "desc"));
   const snap = await getDocs(q);
 
@@ -174,9 +205,6 @@ async function loadData() {
 
   const recoveryRate = totalBet ? (totalPay / totalBet) * 100 : 0;
 
-  // =====================
-  // 収支合計表示
-  // =====================
   document.getElementById("summary").innerHTML = `
     <p>総投資：${totalBet}円</p>
     <p>総回収：${totalPay}円</p>
@@ -185,9 +213,6 @@ async function loadData() {
     </p>
   `;
 
-  // =====================
-  // グラフ
-  // =====================
   if (chartInstance) chartInstance.destroy();
 
   const ctx = document.getElementById("chart");
