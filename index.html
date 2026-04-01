@@ -2,13 +2,15 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>競馬収支ダッシュボード Pro</title>
+<title>競馬収支ダッシュボード</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 body { font-family:sans-serif; background:#f5f5f5; padding:15px; }
+
 .card { background:#fff; padding:15px; margin:10px 0; border-radius:10px; }
+
 input, select, button { padding:8px; margin:5px; cursor:pointer; }
 
 #userInfo { font-weight:bold; margin:10px 0; }
@@ -20,12 +22,11 @@ input, select, button { padding:8px; margin:5px; cursor:pointer; }
 </head>
 <body>
 
-<h2>🏇 競馬収支ダッシュボード Pro</h2>
+<h2>🏇 競馬収支ダッシュボード</h2>
 
 <div id="userInfo">未ログイン</div>
 
 <button id="loginBtn">Googleログイン</button>
-<button id="anonBtn">匿名ログイン</button>
 <button id="logoutBtn" style="display:none;">ログアウト</button>
 
 <div class="card">
@@ -66,7 +67,6 @@ import {
   getAuth,
   signInWithPopup,
   GoogleAuthProvider,
-  signInAnonymously,
   signOut,
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
@@ -97,46 +97,39 @@ let currentUser = null;
 let chartInstance = null;
 
 // =====================
-// ボタン
+// UI
 // =====================
 const loginBtn = document.getElementById("loginBtn");
-const anonBtn = document.getElementById("anonBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 
 // =====================
-// ログイン
+// Googleログイン
 // =====================
 loginBtn.onclick = () => {
   signInWithPopup(auth, new GoogleAuthProvider());
 };
 
-anonBtn.onclick = () => {
-  signInAnonymously(auth);
-};
-
 // =====================
-// ログアウト（追加）
+// ログアウト
 // =====================
 logoutBtn.onclick = () => {
   signOut(auth);
 };
 
 // =====================
-// 状態監視（超重要）
+// ログイン状態
 // =====================
 onAuthStateChanged(auth, (user) => {
+
   currentUser = user;
 
   const info = document.getElementById("userInfo");
 
   if (user) {
 
-    let type = user.isAnonymous ? "匿名ログイン" : "Googleログイン";
-
-    info.innerText = `ログイン中（${type}）：${user.uid}`;
+    info.innerText = `ログイン中：${user.email}`;
 
     loginBtn.style.display = "none";
-    anonBtn.style.display = "none";
     logoutBtn.style.display = "inline-block";
 
     loadData();
@@ -146,7 +139,6 @@ onAuthStateChanged(auth, (user) => {
     info.innerText = "未ログイン";
 
     loginBtn.style.display = "inline-block";
-    anonBtn.style.display = "inline-block";
     logoutBtn.style.display = "none";
   }
 });
@@ -192,6 +184,7 @@ async function loadData() {
   let data = [];
 
   snap.forEach(doc => {
+
     const d = doc.data();
 
     if (d.uid !== currentUser.uid) return;
