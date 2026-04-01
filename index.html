@@ -1,254 +1,118 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>競馬ダッシュボード</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<style>
-body {
-  font-family: sans-serif;
-  background: #0f172a;
-  color: white;
-  margin: 0;
-  padding: 0;
-}
-
-/* ダッシュボード */
-.header {
-  padding: 20px;
-  font-size: 20px;
-  font-weight: bold;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-  padding: 10px;
-}
-
-.card {
-  background: #1e293b;
-  padding: 15px;
-  border-radius: 12px;
-}
-
-.big {
-  font-size: 22px;
-  font-weight: bold;
-}
-
-/* 入力 */
-.input-area {
-  padding: 10px;
-}
-
-input, select, button {
-  width: 100%;
-  padding: 12px;
-  margin: 5px 0;
-  border-radius: 8px;
-  border: none;
-  font-size: 14px;
-}
-
-button {
-  background: #3b82f6;
-  color: white;
-  font-weight: bold;
-}
-
-/* 履歴 */
-.history {
-  padding: 10px;
-}
-
-.item {
-  background: #1e293b;
-  margin: 5px 0;
-  padding: 10px;
-  border-radius: 8px;
-  display: flex;
-  justify-content: space-between;
-}
-
-.win { color: #22c55e; }
-.lose { color: #ef4444; }
-</style>
+  <meta charset="UTF-8" />
+  <title>Keiba Dashboard</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; background:#f5f5f5; }
+    .card { background:white; padding:15px; margin:10px 0; border-radius:10px; }
+    input, select, button { padding:8px; margin:5px; }
+  </style>
 </head>
-
 <body>
 
-<div class="header">🏇 競馬ダッシュボード</div>
+<h2>🏇 競馬収支ダッシュボード</h2>
 
-<!-- KPI -->
-<div class="grid">
-  <div class="card">
-    <div>投資</div>
-    <div class="big" id="totalBet">0</div>
-  </div>
-  <div class="card">
-    <div>回収</div>
-    <div class="big" id="totalWin">0</div>
-  </div>
-  <div class="card">
-    <div>収支</div>
-    <div class="big" id="profit">0</div>
-  </div>
-  <div class="card">
-    <div>ROI</div>
-    <div class="big" id="roi">0%</div>
-  </div>
-</div>
+<button id="loginBtn">Googleログイン</button>
+<button id="anonBtn">匿名ログイン</button>
 
-<!-- 入力 -->
-<div class="input-area">
-  <input type="date" id="date">
-  <input type="number" id="bet" placeholder="投資額">
-  <input type="number" id="win" placeholder="回収額">
+<div class="card">
+  <h3>収支入力</h3>
+  <input id="bet" placeholder="投資額" type="number">
+  <input id="pay" placeholder="回収額" type="number">
 
-  <!-- 券種（追加） -->
   <select id="type">
-    <option value="単勝">単勝</option>
     <option value="馬連">馬連</option>
     <option value="馬単">馬単</option>
     <option value="3連複">3連複</option>
     <option value="3連単">3連単</option>
-    <option value="ワイド">ワイド</option>
   </select>
 
-  <button onclick="addData()">追加</button>
+  <button id="saveBtn">保存</button>
 </div>
 
-<!-- グラフ -->
-<div class="card" style="margin:10px;">
-  <canvas id="chart"></canvas>
+<div class="card">
+  <h3>結果</h3>
+  <div id="result"></div>
 </div>
 
-<!-- 履歴 -->
-<div class="history" id="history"></div>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+import {
+  getAuth,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signInAnonymously
+} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
-<script>
-let data = JSON.parse(localStorage.getItem("keiba")) || [];
-document.getElementById("date").valueAsDate = new Date();
+import {
+  getFirestore,
+  collection,
+  addDoc,
+  getDocs
+} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-let chart;
+const firebaseConfig = {
+  apiKey: "YOUR_KEY",
+  authDomain: "YOUR_DOMAIN",
+  projectId: "YOUR_ID",
+  storageBucket: "YOUR_BUCKET",
+  messagingSenderId: "YOUR_ID",
+  appId: "YOUR_APP_ID"
+};
 
-// =====================
-// 追加
-// =====================
-function addData(){
-  let date = document.getElementById("date").value;
-  let bet = Number(document.getElementById("bet").value);
-  let win = Number(document.getElementById("win").value);
-  let type = document.getElementById("type").value;
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
 
-  if(!bet && !win) return;
+// ログイン
+document.getElementById("loginBtn").onclick = () => {
+  signInWithPopup(auth, new GoogleAuthProvider());
+};
 
-  data.push({
-    id: Date.now(),
-    date,
+document.getElementById("anonBtn").onclick = () => {
+  signInAnonymously(auth);
+};
+
+// 保存
+document.getElementById("saveBtn").onclick = async () => {
+  const bet = Number(document.getElementById("bet").value);
+  const pay = Number(document.getElementById("pay").value);
+  const type = document.getElementById("type").value;
+
+  await addDoc(collection(db, "bets"), {
     bet,
-    win,
-    type
+    pay,
+    type,
+    roi: (pay / bet) * 100,
+    createdAt: new Date()
   });
 
-  save();
-  update();
-}
+  loadData();
+};
 
-// =====================
-// 保存（将来Firebase差し替えポイント）
-// =====================
-function save(){
-  localStorage.setItem("keiba", JSON.stringify(data));
+// 表示
+async function loadData() {
+  const snap = await getDocs(collection(db, "bets"));
+  let totalBet = 0;
+  let totalPay = 0;
 
-  // 👉 Firebase化するときはここを置換
-  // firebase.firestore().collection("keiba").set(...)
-}
-
-// =====================
-// 更新
-// =====================
-function update(){
-
-  let totalBet = data.reduce((a,b)=>a+b.bet,0);
-  let totalWin = data.reduce((a,b)=>a+b.win,0);
-  let profit = totalWin - totalBet;
-
-  document.getElementById("totalBet").textContent = totalBet;
-  document.getElementById("totalWin").textContent = totalWin;
-  document.getElementById("profit").textContent = profit;
-
-  let roi = totalBet ? (profit / totalBet) * 100 : 0;
-  document.getElementById("roi").textContent = roi.toFixed(1) + "%";
-
-  drawChart();
-  drawHistory();
-}
-
-// =====================
-// グラフ
-// =====================
-function drawChart(){
-  let labels = data.map(d => d.date);
-  let profits = data.map(d => d.win - d.bet);
-
-  if(chart) chart.destroy();
-
-  chart = new Chart(document.getElementById("chart"), {
-    type: "line",
-    data: {
-      labels,
-      datasets: [{
-        label: "収支",
-        data: profits
-      }]
-    }
-  });
-}
-
-// =====================
-// 履歴
-// =====================
-function drawHistory(){
-
-  let html = "";
-
-  data.slice().reverse().forEach(d=>{
-    let p = d.win - d.bet;
-    let cls = p >= 0 ? "win" : "lose";
-
-    html += `
-      <div class="item ${cls}">
-        <div>
-          ${d.date} / ${d.type}
-        </div>
-        <div>
-          ${p}円
-          <button onclick="del(${d.id})">削除</button>
-        </div>
-      </div>
-    `;
+  snap.forEach(doc => {
+    const d = doc.data();
+    totalBet += d.bet;
+    totalPay += d.pay;
   });
 
-  document.getElementById("history").innerHTML = html;
+  const roi = totalBet ? (totalPay / totalBet) * 100 : 0;
+
+  document.getElementById("result").innerHTML = `
+    <p>総投資：${totalBet}</p>
+    <p>総回収：${totalPay}</p>
+    <p>ROI：${roi.toFixed(2)}%</p>
+  `;
 }
 
-// =====================
-// 削除
-// =====================
-function del(id){
-  data = data.filter(d => d.id !== id);
-  save();
-  update();
-}
-
-// =====================
-update();
+loadData();
 </script>
 
 </body>
