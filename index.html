@@ -9,29 +9,11 @@
 
 <style>
 body { font-family: sans-serif; padding: 15px; background: #f5f5f5; }
-
 input, button, select {
-  padding: 14px;
-  margin: 6px 0;
-  width: 100%;
-  font-size: 16px;
-  border-radius: 8px;
+  padding: 14px; margin: 6px 0; width: 100%; font-size: 16px;
 }
-
-button {
-  background: #007bff;
-  color: white;
-  font-weight: bold;
-  border: none;
-}
-
-.card {
-  background: white;
-  padding: 15px;
-  margin-top: 12px;
-  border-radius: 12px;
-}
-
+button { background: #007bff; color: white; border: none; }
+.card { background: white; padding: 15px; margin-top: 12px; border-radius: 12px; }
 .win { color: green; }
 .lose { color: red; }
 </style>
@@ -54,7 +36,7 @@ button {
 
 <div class="card">
 <h3>月選択</h3>
-<select id="monthSelect" onchange="update()"></select>
+<select id="monthSelect"></select>
 </div>
 
 <div class="card">
@@ -80,6 +62,22 @@ document.getElementById("date").valueAsDate = new Date();
 
 let chart;
 
+// ★ 月リスト生成（1回だけ）
+function initMonthSelect(){
+  let select = document.getElementById("monthSelect");
+  let months = [...new Set(data.map(d=>d.date.slice(0,7)))].sort().reverse();
+
+  select.innerHTML = months.map(m=>`<option value="${m}">${m}</option>`).join("");
+
+  // 今月を初期選択
+  let now = new Date().toISOString().slice(0,7);
+  if(months.includes(now)){
+    select.value = now;
+  }
+
+  select.onchange = update;
+}
+
 function addData(){
   let date = document.getElementById("date").value;
   let bet = Number(document.getElementById("bet").value);
@@ -93,12 +91,14 @@ function addData(){
   document.getElementById("bet").value = "";
   document.getElementById("win").value = "";
 
+  initMonthSelect(); // ★ ここ重要
   update();
 }
 
 function deleteData(i){
   data.splice(i,1);
   localStorage.setItem("keiba", JSON.stringify(data));
+  initMonthSelect(); // ★ ここ重要
   update();
 }
 
@@ -111,8 +111,6 @@ function update(){
   document.getElementById("profit").textContent = totalWin-totalBet;
   document.getElementById("rate").textContent =
     totalBet ? ((totalWin/totalBet)*100).toFixed(1) : 0;
-
-  updateMonthSelect();
 
   let month = document.getElementById("monthSelect").value;
 
@@ -129,13 +127,6 @@ function update(){
 
   drawChart(monthData);
   drawHistory(monthData);
-}
-
-function updateMonthSelect(){
-  let select = document.getElementById("monthSelect");
-  let months = [...new Set(data.map(d=>d.date.slice(0,7)))];
-
-  select.innerHTML = months.map(m=>`<option>${m}</option>`).join("");
 }
 
 function drawChart(monthData){
@@ -155,7 +146,7 @@ function drawChart(monthData){
 
 function drawHistory(monthData){
   let html = "";
-  monthData.slice().reverse().forEach((d,i)=>{
+  monthData.slice().reverse().forEach(d=>{
     let profit = d.win-d.bet;
     let cls = profit>=0?"win":"lose";
 
@@ -169,6 +160,8 @@ function drawHistory(monthData){
   document.getElementById("history").innerHTML = html;
 }
 
+// 初期化
+initMonthSelect();
 update();
 </script>
 
