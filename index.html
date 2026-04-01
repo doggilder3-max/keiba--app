@@ -25,13 +25,23 @@ button { background: #007bff; color: white; border: none; }
 <input type="date" id="date">
 <input type="number" id="bet" placeholder="投資額">
 <input type="number" id="win" placeholder="回収額">
+<input type="text" id="tag" placeholder="タグ（G1 / 単勝 / ワイドなど）">
+
 <button onclick="addData()">追加</button>
+<button onclick="exportCSV()">CSV出力</button>
 
 <div class="card">
 <p>合計投資：<span id="totalBet">0</span>円</p>
 <p>合計回収：<span id="totalWin">0</span>円</p>
 <p>収支：<span id="profit">0</span>円</p>
 <p>回収率：<span id="rate">0</span>%</p>
+</div>
+
+<div class="card">
+<h3>分析</h3>
+<p>勝率：<span id="winRate">0</span>%</p>
+<p>ROI：<span id="roi">0</span>%</p>
+<p>取引数：<span id="count">0</span></p>
 </div>
 
 <div class="card">
@@ -62,9 +72,9 @@ document.getElementById("date").valueAsDate = new Date();
 
 let chart;
 
-// =======================
-// 月選択初期化
-// =======================
+// ======================
+// 月初期化
+// ======================
 function initMonthSelect(){
   const select = document.getElementById("monthSelect");
 
@@ -73,71 +83,94 @@ function initMonthSelect(){
     .reverse();
 
   const now = new Date().toISOString().slice(0,7);
-
   if(!months.includes(now)) months.unshift(now);
 
-  select.innerHTML = months.map(m =>
-    `<option value="${m}">${m}</option>`
-  ).join("");
-
+  select.innerHTML = months.map(m => `<option value="${m}">${m}</option>`).join("");
   select.value = now;
-
   select.onchange = update;
 }
 
-// =======================
-// データ追加（ID付与）
-// =======================
+// ======================
+// 追加（タグ＋ID）
+// ======================
 function addData(){
   let date = document.getElementById("date").value;
   let bet = Number(document.getElementById("bet").value);
   let win = Number(document.getElementById("win").value);
+  let tag = document.getElementById("tag").value;
 
   if(!bet && !win) return;
 
   data.push({
-    id: Date.now(),   // ★ここが重要（ID）
+    id: Date.now(),
     date,
     bet,
-    win
+    win,
+    tag
   });
 
   localStorage.setItem("keiba", JSON.stringify(data));
 
   document.getElementById("bet").value = "";
   document.getElementById("win").value = "";
+  document.getElementById("tag").value = "";
 
   initMonthSelect();
   update();
 }
 
-// =======================
-// 削除（IDで安全削除）
-// =======================
+// ======================
+// 削除
+// ======================
 function deleteData(id){
   data = data.filter(d => d.id !== id);
   localStorage.setItem("keiba", JSON.stringify(data));
-
   initMonthSelect();
   update();
 }
 
-// =======================
+// ======================
+// CSV出力
+// ======================
+function exportCSV(){
+  let csv = "date,bet,win,tag\n" +
+    data.map(d => `${d.date},${d.bet},${d.win},${d.tag || ""}`).join("\n");
+
+  const blob = new Blob([csv], {type:"text/csv"});
+  const url = URL.createObjectURL(blob);
+
+  let a = document.createElement("a");
+  a.href = url;
+  a.download = "keiba.csv";
+  a.click();
+}
+
+// ======================
 // 全体更新
-// =======================
+// ======================
 function update(){
 
   let totalBet = data.reduce((a,b)=>a+b.bet,0);
   let totalWin = data.reduce((a,b)=>a+b.win,0);
 
+  let profit = totalWin - totalBet;
+  let rate = totalBet ? (totalWin/totalBet)*100 : 0;
+
   document.getElementById("totalBet").textContent = totalBet;
   document.getElementById("totalWin").textContent = totalWin;
-  document.getElementById("profit").textContent = totalWin - totalBet;
-  document.getElementById("rate").textContent =
-    totalBet ? ((totalWin/totalBet)*100).toFixed(1) : 0;
+  document.getElementById("profit").textContent = profit;
+  document.getElementById("rate").textContent = rate.toFixed(1);
+
+  let wins = data.filter(d => d.win > d.bet).length;
+  let winRate = data.length ? (wins / data.length) * 100 : 0;
+
+  let roi = totalBet ? (profit / totalBet) * 100 : 0;
+
+  document.getElementById("winRate").textContent = winRate.toFixed(1);
+  document.getElementById("roi").textContent = roi.toFixed(1);
+  document.getElementById("count").textContent = data.length;
 
   let month = document.getElementById("monthSelect").value || new Date().toISOString().slice(0,7);
-
   let monthData = data.filter(d => d.date.startsWith(month));
 
   let mBet = monthData.reduce((a,b)=>a+b.bet,0);
@@ -153,9 +186,9 @@ function update(){
   drawHistory(monthData);
 }
 
-// =======================
+// ======================
 // グラフ
-// =======================
+// ======================
 function drawChart(monthData){
   let labels = monthData.map(d=>d.date);
   let profits = monthData.map(d=>d.win - d.bet);
@@ -166,17 +199,14 @@ function drawChart(monthData){
     type: "bar",
     data: {
       labels,
-      datasets: [{
-        label: "収支",
-        data: profits
-      }]
+      datasets: [{ label:"収支", data: profits }]
     }
   });
 }
 
-// =======================
-// 履歴表示（IDベース削除）
-// =======================
+// ======================
+// 履歴
+// ======================
 function drawHistory(monthData){
   let html = "";
 
@@ -186,7 +216,7 @@ function drawHistory(monthData){
 
     html += `
       <div class="${cls}">
-        ${d.date} / ${profit}円
+        ${d.date} / ${profit}円 / ${d.tag || "なし"}
         <button onclick="deleteData(${d.id})">削除</button>
       </div>
     `;
@@ -195,12 +225,9 @@ function drawHistory(monthData){
   document.getElementById("history").innerHTML = html;
 }
 
-// =======================
-// 初期化
-// =======================
+// ======================
 initMonthSelect();
 update();
-
 </script>
 
 </body>
