@@ -50,7 +50,7 @@ button { cursor:pointer; }
 </div>
 
 <div class="card">
-  <h3>📊 収支サマリー</h3>
+  <h3>📊 収支合計</h3>
   <div id="summary"></div>
 </div>
 
@@ -175,7 +175,7 @@ async function loadData() {
   const recoveryRate = totalBet ? (totalPay / totalBet) * 100 : 0;
 
   // =====================
-  // サマリー表示
+  // 収支合計表示
   // =====================
   document.getElementById("summary").innerHTML = `
     <p>総投資：${totalBet}円</p>
@@ -186,7 +186,7 @@ async function loadData() {
   `;
 
   // =====================
-  // グラフ描画
+  // グラフ
   // =====================
   if (chartInstance) chartInstance.destroy();
 
