@@ -9,7 +9,6 @@ body { font-family: sans-serif; padding: 20px; background: #f5f5f5; }
 input, button { padding: 10px; margin: 5px 0; width: 100%; }
 .card { background: white; padding: 15px; margin-top: 10px; border-radius: 10px; }
 .item { border-bottom: 1px solid #ddd; padding: 10px 0; }
-.profit { font-weight: bold; }
 .win { color: green; }
 .lose { color: red; }
 </style>
@@ -31,6 +30,14 @@ input, button { padding: 10px; margin: 5px 0; width: 100%; }
 </div>
 
 <div class="card">
+<h3>今月の収支</h3>
+<p>投資：<span id="monthBet">0</span>円</p>
+<p>回収：<span id="monthWin">0</span>円</p>
+<p>収支：<span id="monthProfit">0</span>円</p>
+<p>回収率：<span id="monthRate">0</span>%</p>
+</div>
+
+<div class="card">
 <h3>履歴</h3>
 <div id="history"></div>
 </div>
@@ -38,7 +45,7 @@ input, button { padding: 10px; margin: 5px 0; width: 100%; }
 <script>
 let data = JSON.parse(localStorage.getItem("keiba")) || [];
 
-// 今日の日付を自動入力
+// 日付自動
 document.getElementById("date").valueAsDate = new Date();
 
 function addData(){
@@ -50,7 +57,6 @@ function addData(){
 
   data.push({date, bet, win});
   localStorage.setItem("keiba", JSON.stringify(data));
-
   update();
 }
 
@@ -67,24 +73,41 @@ function update(){
   document.getElementById("totalBet").textContent = totalBet;
   document.getElementById("totalWin").textContent = totalWin;
   document.getElementById("profit").textContent = totalWin - totalBet;
-  document.getElementById("rate").textContent = totalBet ? ((totalWin/totalBet)*100).toFixed(1) : 0;
+  document.getElementById("rate").textContent =
+    totalBet ? ((totalWin/totalBet)*100).toFixed(1) : 0;
 
-  let historyHTML = "";
-  data.slice().reverse().forEach((d, i)=>{
+  // ★ 月別
+  let now = new Date();
+  let currentMonth = now.toISOString().slice(0,7);
+
+  let monthData = data.filter(d => d.date && d.date.startsWith(currentMonth));
+
+  let monthBet = monthData.reduce((a,b)=>a+b.bet,0);
+  let monthWin = monthData.reduce((a,b)=>a+b.win,0);
+
+  document.getElementById("monthBet").textContent = monthBet;
+  document.getElementById("monthWin").textContent = monthWin;
+  document.getElementById("monthProfit").textContent = monthWin - monthBet;
+  document.getElementById("monthRate").textContent =
+    monthBet ? ((monthWin/monthBet)*100).toFixed(1) : 0;
+
+  // 履歴
+  let html = "";
+  data.slice().reverse().forEach((d,i)=>{
     let profit = d.win - d.bet;
     let cls = profit >= 0 ? "win" : "lose";
 
-    historyHTML += `
-      <div class="item">
-        <div>${d.date}</div>
-        <div>投資 ${d.bet}円 / 回収 ${d.win}円</div>
-        <div class="profit ${cls}">収支 ${profit}円</div>
-        <button onclick="deleteData(${data.length - 1 - i})">削除</button>
-      </div>
+    html += `
+    <div class="item">
+      <div>${d.date}</div>
+      <div>投資 ${d.bet}円 / 回収 ${d.win}円</div>
+      <div class="${cls}">収支 ${profit}円</div>
+      <button onclick="deleteData(${data.length-1-i})">削除</button>
+    </div>
     `;
   });
 
-  document.getElementById("history").innerHTML = historyHTML;
+  document.getElementById("history").innerHTML = html;
 }
 
 update();
