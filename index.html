@@ -2,20 +2,26 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>競馬収支ダッシュボード</title>
+<title>競馬収支ダッシュボード Pro</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body { font-family: sans-serif; padding: 15px; background:#f5f5f5; }
-.card { background:white; padding:15px; margin:10px 0; border-radius:10px; }
+body { font-family:sans-serif; background:#f5f5f5; padding:15px; }
+.card { background:#fff; padding:15px; margin:10px 0; border-radius:10px; }
 input, select, button { padding:8px; margin:5px; }
 button { cursor:pointer; }
-#userInfo { margin:10px 0; font-weight:bold; }
+
+#userInfo { font-weight:bold; margin:10px 0; }
+
+.good { color:green; font-weight:bold; }
+.bad { color:red; font-weight:bold; }
 </style>
 
 </head>
 <body>
 
-<h2>🏇 競馬収支ダッシュボード</h2>
+<h2>🏇 競馬収支ダッシュボード Pro</h2>
 
 <div id="userInfo">未ログイン</div>
 
@@ -27,25 +33,30 @@ button { cursor:pointer; }
 
   <input id="date" type="date">
 
-  <input id="bet" placeholder="投資額" type="number">
-  <input id="pay" placeholder="回収額" type="number">
+  <input id="bet" type="number" placeholder="投資額">
+  <input id="pay" type="number" placeholder="回収額">
 
   <select id="type">
-    <option value="単勝">単勝</option>
-    <option value="複勝">複勝</option>
-    <option value="ワイド">ワイド</option>
-    <option value="馬連">馬連</option>
-    <option value="馬単">馬単</option>
-    <option value="3連複">3連複</option>
-    <option value="3連単">3連単</option>
+    <option>単勝</option>
+    <option>複勝</option>
+    <option>ワイド</option>
+    <option>馬連</option>
+    <option>馬単</option>
+    <option>3連複</option>
+    <option>3連単</option>
   </select>
 
   <button id="saveBtn">保存</button>
 </div>
 
 <div class="card">
-  <h3>結果</h3>
-  <div id="result"></div>
+  <h3>📊 収支サマリー</h3>
+  <div id="summary"></div>
+</div>
+
+<div class="card">
+  <h3>📈 収支グラフ</h3>
+  <canvas id="chart"></canvas>
 </div>
 
 <script type="module">
@@ -68,16 +79,13 @@ import {
   orderBy
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-
-// 🔥 あなたのFirebase設定
 const firebaseConfig = {
-    apiKey: "AIzaSyA8K2ulpBeavYfDYLBhgAYax5TCrUekds8",
-    authDomain: "keiba-dashboard-1f6c4.firebaseapp.com",
-    projectId: "keiba-dashboard-1f6c4",
-    storageBucket: "keiba-dashboard-1f6c4.firebasestorage.app",
-    messagingSenderId: "1024448079737",
-    appId: "1:1024448079737:web:ede5a817db713189b271a8",
-    measurementId: "G-XGHG8N63CW"
+  apiKey: "AIzaSyA8K2ulpBeavYfDYLBhgAYax5TCrUekds8",
+  authDomain: "keiba-dashboard-1f6c4.firebaseapp.com",
+  projectId: "keiba-dashboard-1f6c4",
+  storageBucket: "keiba-dashboard-1f6c4.firebasestorage.app",
+  messagingSenderId: "1024448079737",
+  appId: "1:1024448079737:web:ede5a817db713189b271a8"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -85,58 +93,46 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 let currentUser = null;
+let chartInstance = null;
 
-const loginBtn = document.getElementById("loginBtn");
-const anonBtn = document.getElementById("anonBtn");
-
-// ========================
-// 🔐 ログイン
-// ========================
-loginBtn.onclick = () => {
+// =====================
+// ログイン
+// =====================
+document.getElementById("loginBtn").onclick = () => {
   signInWithPopup(auth, new GoogleAuthProvider());
 };
 
-anonBtn.onclick = async () => {
-  await signInAnonymously(auth);
+document.getElementById("anonBtn").onclick = () => {
+  signInAnonymously(auth);
 };
 
-// ========================
-// 👤 ログイン状態監視
-// ========================
+// =====================
+// 状態監視
+// =====================
 onAuthStateChanged(auth, (user) => {
   currentUser = user;
 
-  const userInfo = document.getElementById("userInfo");
-
   if (user) {
-    loginBtn.style.display = "none";
-    anonBtn.style.display = "none";
-
-    userInfo.innerText = `ログイン中：${user.uid}`;
-    console.log("ログイン成功:", user.uid);
+    document.getElementById("userInfo").innerText =
+      "ログイン中：" + user.uid;
 
     loadData();
   } else {
-    userInfo.innerText = "未ログイン";
+    document.getElementById("userInfo").innerText = "未ログイン";
   }
 });
 
-// ========================
-// 💾 保存
-// ========================
+// =====================
+// 保存
+// =====================
 document.getElementById("saveBtn").onclick = async () => {
 
-  if (!currentUser) {
-    alert("ログインしてください");
-    return;
-  }
+  if (!currentUser) return alert("ログインしてください");
 
   const date = document.getElementById("date").value;
   const bet = Number(document.getElementById("bet").value);
   const pay = Number(document.getElementById("pay").value);
   const type = document.getElementById("type").value;
-
-  if (!bet || !pay) return;
 
   await addDoc(collection(db, "bets"), {
     uid: currentUser.uid,
@@ -144,16 +140,15 @@ document.getElementById("saveBtn").onclick = async () => {
     bet,
     pay,
     type,
-    roi: (pay / bet) * 100,
     createdAt: new Date()
   });
 
   loadData();
 };
 
-// ========================
-// 📊 データ読み込み
-// ========================
+// =====================
+// データ取得
+// =====================
 async function loadData() {
 
   const q = query(collection(db, "bets"), orderBy("createdAt", "desc"));
@@ -162,22 +157,51 @@ async function loadData() {
   let totalBet = 0;
   let totalPay = 0;
 
+  let labels = [];
+  let data = [];
+
   snap.forEach(doc => {
     const d = doc.data();
 
-    if (currentUser && d.uid !== currentUser.uid) return;
+    if (d.uid !== currentUser.uid) return;
 
     totalBet += d.bet;
     totalPay += d.pay;
+
+    labels.push(d.date);
+    data.push(d.pay - d.bet);
   });
 
-  const roi = totalBet ? (totalPay / totalBet) * 100 : 0;
+  const recoveryRate = totalBet ? (totalPay / totalBet) * 100 : 0;
 
-  document.getElementById("result").innerHTML = `
+  // =====================
+  // サマリー表示
+  // =====================
+  document.getElementById("summary").innerHTML = `
     <p>総投資：${totalBet}円</p>
     <p>総回収：${totalPay}円</p>
-    <p>ROI：${roi.toFixed(2)}%</p>
+    <p class="${recoveryRate >= 100 ? 'good' : 'bad'}">
+      回収率：${recoveryRate.toFixed(2)}%
+    </p>
   `;
+
+  // =====================
+  // グラフ描画
+  // =====================
+  if (chartInstance) chartInstance.destroy();
+
+  const ctx = document.getElementById("chart");
+
+  chartInstance = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: labels.reverse(),
+      datasets: [{
+        label: "日別収支",
+        data: data.reverse()
+      }]
+    }
+  });
 }
 
 </script>
