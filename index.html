@@ -17,6 +17,14 @@ input, select, button { padding:8px; margin:5px; }
 
 .deleteBtn { background:#ff4d4d; color:#fff; border:none; padding:5px; }
 .editBtn { background:#4d79ff; color:#fff; border:none; padding:5px; }
+
+.quickBtn { padding:6px 10px; }
+.raceGroup { border:1px solid #ddd; border-radius:8px; padding:10px; margin:10px 0; background:#fafafa; }
+.raceHeader { font-weight:bold; margin-bottom:8px; }
+.raceSub { font-size:14px; margin-bottom:8px; }
+.entryRow { padding:6px 0; border-top:1px solid #eee; }
+.entryRow:first-of-type { border-top:none; }
+.rankRow { margin:4px 0; }
 </style>
 </head>
 
@@ -35,6 +43,32 @@ input, select, button { padding:8px; margin:5px; }
 <input id="date" type="date">
 <input id="bet" type="number" placeholder="投資">
 <input id="pay" type="number" placeholder="回収">
+
+<div>
+<button type="button" class="quickBtn" onclick="setBetAmount(100)">100円</button>
+<button type="button" class="quickBtn" onclick="setBetAmount(300)">300円</button>
+<button type="button" class="quickBtn" onclick="setBetAmount(500)">500円</button>
+<button type="button" class="quickBtn" onclick="setBetAmount(1000)">1000円</button>
+<button type="button" class="quickBtn" onclick="setBetAmount(3000)">3000円</button>
+<button type="button" class="quickBtn" onclick="setBetAmount(5000)">5000円</button>
+</div>
+
+<input id="raceName" type="text" placeholder="レース名">
+<select id="raceNumber">
+<option value="">R選択</option>
+<option>1R</option>
+<option>2R</option>
+<option>3R</option>
+<option>4R</option>
+<option>5R</option>
+<option>6R</option>
+<option>7R</option>
+<option>8R</option>
+<option>9R</option>
+<option>10R</option>
+<option>11R</option>
+<option>12R</option>
+</select>
 
 <select id="place">
 <option value="">競馬場選択</option>
@@ -113,9 +147,10 @@ input, select, button { padding:8px; margin:5px; }
 </div>
 
 <div class="card"><h3>📊 収支</h3><div id="summary"></div></div>
-<div class="card"><h3>📋 履歴</h3><div id="history"></div></div>
-<div class="card"><h3>🏟 競馬場別</h3><div id="placeStats"></div></div>
-<div class="card"><h3>🏇 騎手別</h3><div id="jockeyStats"></div></div>
+<div class="card"><h3>📈 券種別回収率</h3><div id="typeStats"></div></div>
+<div class="card"><h3>📋 履歴（レース単位）</h3><div id="history"></div></div>
+<div class="card"><h3>🏟 競馬場別ランキング</h3><div id="placeStats"></div></div>
+<div class="card"><h3>🏇 騎手別ランキング</h3><div id="jockeyStats"></div></div>
 
 <script type="module">
 
@@ -209,6 +244,8 @@ const saveBtn = document.getElementById("saveBtn");
 const date = document.getElementById("date");
 const bet = document.getElementById("bet");
 const pay = document.getElementById("pay");
+const raceName = document.getElementById("raceName");
+const raceNumber = document.getElementById("raceNumber");
 const place = document.getElementById("place");
 const expeditionMode = document.getElementById("expeditionMode");
 const jockey1 = document.getElementById("jockey1");
@@ -223,6 +260,53 @@ const summary = document.getElementById("summary");
 const history = document.getElementById("history");
 const placeStats = document.getElementById("placeStats");
 const jockeyStats = document.getElementById("jockeyStats");
+const typeStats = document.getElementById("typeStats");
+
+function todayString(){
+const now = new Date();
+const y = now.getFullYear();
+const m = String(now.getMonth() + 1).padStart(2, "0");
+const d = String(now.getDate()).padStart(2, "0");
+return `${y}-${m}-${d}`;
+}
+
+function setInitialDate(){
+if(!date.value){
+date.value = todayString();
+}
+}
+
+window.setBetAmount = (amount) => {
+bet.value = amount;
+};
+
+function restoreLastSelections(){
+const lastPlace = localStorage.getItem("keiba_last_place");
+const lastType = localStorage.getItem("keiba_last_type");
+
+if(lastPlace){
+place.value = lastPlace;
+}
+if(lastType){
+type.value = lastType;
+}
+}
+
+function saveLastSelections(){
+localStorage.setItem("keiba_last_place", place.value || "");
+localStorage.setItem("keiba_last_type", type.value || "");
+}
+
+place.onchange = () => {
+saveLastSelections();
+updateJockeyOptions();
+};
+
+type.onchange = () => {
+saveLastSelections();
+updateJockeyFields();
+updateJockeyOptions();
+};
 
 function setJockeyOptions(selectEl, jockeyList, selectedValue){
 selectEl.innerHTML = '<option value="">騎手選択</option>';
@@ -282,14 +366,10 @@ jockey3.style.display = "inline";
 }
 }
 
-type.onchange = () => {
-updateJockeyFields();
-updateJockeyOptions();
-};
-
-place.onchange = updateJockeyOptions;
 expeditionMode.onchange = updateJockeyOptions;
 
+restoreLastSelections();
+setInitialDate();
 updateJockeyFields();
 updateJockeyOptions();
 
@@ -332,6 +412,7 @@ summary.innerHTML = "";
 history.innerHTML = "";
 placeStats.innerHTML = "";
 jockeyStats.innerHTML = "";
+typeStats.innerHTML = "";
 }
 });
 
@@ -400,10 +481,16 @@ bet:+bet.value,
 pay:+pay.value,
 type:type.value,
 place:place.value || "未設定",
+raceName: raceName.value || "",
+raceNumber: raceNumber.value || "",
 jockey:jockeyValue || "未設定",
 createdAt:new Date()
 });
 
+setInitialDate();
+pay.value = "";
+raceName.value = "";
+raceNumber.value = "";
 loadData();
 };
 
@@ -427,63 +514,220 @@ pay:+p
 loadData();
 };
 
+function calcRate(payTotal, betTotal){
+return betTotal ? ((payTotal / betTotal) * 100).toFixed(2) : "0.00";
+}
+
+function profitClass(value){
+return value >= 0 ? "good" : "bad";
+}
+
+function renderTypeStats(typeObj){
+const rows = Object.entries(typeObj)
+.sort((a,b)=> (b[1].p - b[1].b) - (a[1].p - a[1].b));
+
+if(rows.length === 0){
+typeStats.innerHTML = "データなし";
+return;
+}
+
+let html = "";
+rows.forEach(([name, obj])=>{
+const profit = obj.p - obj.b;
+html += `<div class="rankRow">${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
+});
+typeStats.innerHTML = html;
+}
+
+function renderPlaceStats(placeObj){
+const rows = Object.entries(placeObj)
+.sort((a,b)=> (b[1].p - b[1].b) - (a[1].p - a[1].b));
+
+if(rows.length === 0){
+placeStats.innerHTML = "データなし";
+return;
+}
+
+let html = "";
+rows.forEach(([name, obj], index)=>{
+const profit = obj.p - obj.b;
+html += `<div class="rankRow">${index + 1}位 ${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
+});
+placeStats.innerHTML = html;
+}
+
+function renderJockeyStats(jockeyObj){
+const rows = Object.entries(jockeyObj)
+.sort((a,b)=> (b[1].p - b[1].b) - (a[1].p - a[1].b));
+
+if(rows.length === 0){
+jockeyStats.innerHTML = "データなし";
+return;
+}
+
+const plusRows = rows.filter(([,obj])=> (obj.p - obj.b) >= 0).slice(0, 10);
+const minusRows = [...rows].sort((a,b)=> (a[1].p - a[1].b) - (b[1].p - b[1].b)).slice(0, 10);
+
+let html = "<div><strong>総合ランキング</strong></div>";
+rows.slice(0, 20).forEach(([name, obj], index)=>{
+const profit = obj.p - obj.b;
+html += `<div class="rankRow">${index + 1}位 ${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
+});
+
+html += "<br><div><strong>プラス騎手 上位10</strong></div>";
+if(plusRows.length === 0){
+html += `<div class="rankRow">該当なし</div>`;
+}else{
+plusRows.forEach(([name, obj], index)=>{
+const profit = obj.p - obj.b;
+html += `<div class="rankRow">${index + 1}位 ${name}　収支:<span class="good">${profit}</span>　回収率:${calcRate(obj.p,obj.b)}%</div>`;
+});
+}
+
+html += "<br><div><strong>マイナス騎手 下位10</strong></div>";
+if(minusRows.length === 0){
+html += `<div class="rankRow">該当なし</div>`;
+}else{
+minusRows.forEach(([name, obj], index)=>{
+const profit = obj.p - obj.b;
+html += `<div class="rankRow">${index + 1}位 ${name}　収支:<span class="bad">${profit}</span>　回収率:${calcRate(obj.p,obj.b)}%</div>`;
+});
+}
+
+jockeyStats.innerHTML = html;
+}
+
+function renderHistory(groups){
+if(groups.length === 0){
+history.innerHTML = "履歴なし";
+return;
+}
+
+let html = "";
+groups.forEach(group=>{
+const groupProfit = group.totalPay - group.totalBet;
+html += `
+<div class="raceGroup">
+<div class="raceHeader">${group.date} ${group.place}</div>
+<div class="raceSub">
+${group.raceNumber ? group.raceNumber : ""} ${group.raceName ? group.raceName : ""}
+投資合計:${group.totalBet} 回収合計:${group.totalPay}
+収支:<span class="${profitClass(groupProfit)}">${groupProfit}</span>
+</div>
+`;
+
+group.items.forEach(item=>{
+html += `
+<div class="entryRow">
+${item.type} ${item.jockey}
+投資:${item.bet} 回収:${item.pay}
+<button onclick="window.edit('${item.id}','${item.enc}')">修正</button>
+<button onclick="window.del('${item.id}')">削除</button>
+</div>
+`;
+});
+
+html += `</div>`;
+});
+
+history.innerHTML = html;
+}
+
 async function loadData(){
 
 if(!user) return;
 
 const snap = await getDocs(query(collection(db,"bets"),orderBy("createdAt","desc")));
 
-let tb=0,tp=0;
-let placeObj={}, jockeyObj={};
-let html="";
+let filteredBet=0, filteredPay=0;
+let monthBet=0, monthPay=0;
+let yearBet=0, yearPay=0;
+
+let placeObj={}, jockeyObj={}, typeObj={};
+let groupsMap = {};
+
+const today = new Date();
+const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
+const currentYear = `${today.getFullYear()}`;
 
 snap.forEach(d=>{
 const v=d.data();
 if(v.uid!==user.uid)return;
 
+const betVal = Number(v.bet || 0);
+const payVal = Number(v.pay || 0);
+
+if(v.date && v.date.startsWith(currentMonth)){
+monthBet += betVal;
+monthPay += payVal;
+}
+
+if(v.date && v.date.startsWith(currentYear)){
+yearBet += betVal;
+yearPay += payVal;
+}
+
 if(filterType.value !== "all" && v.type !== filterType.value) return;
 if(filterMonth.value && (!v.date || !v.date.startsWith(filterMonth.value))) return;
 
-tb+=Number(v.bet || 0);
-tp+=Number(v.pay || 0);
+filteredBet += betVal;
+filteredPay += payVal;
 
 placeObj[v.place]=(placeObj[v.place]||{b:0,p:0});
-placeObj[v.place].b+=Number(v.bet || 0);
-placeObj[v.place].p+=Number(v.pay || 0);
+placeObj[v.place].b+=betVal;
+placeObj[v.place].p+=payVal;
 
 jockeyObj[v.jockey]=(jockeyObj[v.jockey]||{b:0,p:0});
-jockeyObj[v.jockey].b+=Number(v.bet || 0);
-jockeyObj[v.jockey].p+=Number(v.pay || 0);
+jockeyObj[v.jockey].b+=betVal;
+jockeyObj[v.jockey].p+=payVal;
+
+typeObj[v.type]=(typeObj[v.type]||{b:0,p:0});
+typeObj[v.type].b+=betVal;
+typeObj[v.type].p+=payVal;
 
 const enc = encodeURIComponent(JSON.stringify(v));
+const hasRaceGroup = (v.raceName && v.raceName !== "") || (v.raceNumber && v.raceNumber !== "");
+const groupKey = hasRaceGroup
+? `${v.date || ""}__${v.place || ""}__${v.raceNumber || ""}__${v.raceName || ""}`
+: `single__${d.id}`;
 
-html+=`
-<div>
-${v.date} ${v.type} ${v.place} ${v.jockey}
-投資:${v.bet} 回収:${v.pay}
-<button onclick="window.edit('${d.id}','${enc}')">修正</button>
-<button onclick="window.del('${d.id}')">削除</button>
-</div>`;
+if(!groupsMap[groupKey]){
+groupsMap[groupKey] = {
+date: v.date || "",
+place: v.place || "未設定",
+raceNumber: v.raceNumber || "",
+raceName: v.raceName || "",
+totalBet: 0,
+totalPay: 0,
+createdAt: v.createdAt && v.createdAt.toDate ? v.createdAt.toDate().getTime() : 0,
+items: []
+};
+}
+
+groupsMap[groupKey].totalBet += betVal;
+groupsMap[groupKey].totalPay += payVal;
+groupsMap[groupKey].items.push({
+id: d.id,
+type: v.type || "",
+jockey: v.jockey || "",
+bet: betVal,
+pay: payVal,
+enc: enc
+});
 });
 
+const groups = Object.values(groupsMap).sort((a,b)=> b.createdAt - a.createdAt);
+
 summary.innerHTML=`
-投資:${tb} 回収:${tp}
-回収率:${tb?((tp/tb)*100).toFixed(2):0}%
+<div>投資:${filteredBet} 回収:${filteredPay} 回収率:${calcRate(filteredPay,filteredBet)}%</div>
+<div style="margin-top:8px;">当月収支: <span class="${profitClass(monthPay - monthBet)}">${monthPay - monthBet}</span> （投資:${monthBet} / 回収:${monthPay} / 回収率:${calcRate(monthPay,monthBet)}%）</div>
+<div style="margin-top:8px;">今年の収支: <span class="${profitClass(yearPay - yearBet)}">${yearPay - yearBet}</span> （投資:${yearBet} / 回収:${yearPay} / 回収率:${calcRate(yearPay,yearBet)}%）</div>
 `;
 
-let phtml="";
-for(let k in placeObj){
-phtml+=`${k}:${placeObj[k].p-placeObj[k].b}<br>`;
-}
-placeStats.innerHTML=phtml;
-
-let jhtml="";
-for(let k in jockeyObj){
-jhtml+=`${k}:${jockeyObj[k].p-jockeyObj[k].b}<br>`;
-}
-jockeyStats.innerHTML=jhtml;
-
-history.innerHTML=html;
+renderTypeStats(typeObj);
+renderPlaceStats(placeObj);
+renderJockeyStats(jockeyObj);
+renderHistory(groups);
 }
 
 </script>
