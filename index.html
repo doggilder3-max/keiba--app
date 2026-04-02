@@ -1,5 +1,95 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>競馬収支ダッシュボード</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body { font-family:sans-serif; background:#f5f5f5; padding:15px; }
+.card { background:#fff; padding:15px; margin:10px 0; border-radius:10px; }
+
+input, select, button { padding:8px; margin:5px; }
+
+.good { color:green; font-weight:bold; }
+.bad { color:red; font-weight:bold; }
+
+.deleteBtn { background:#ff4d4d; color:#fff; border:none; padding:5px; }
+.editBtn { background:#4d79ff; color:#fff; border:none; padding:5px; }
+</style>
+</head>
+
+<body>
+
+<h2>🏇 競馬収支ダッシュボード</h2>
+
+<div id="userInfo"></div>
+
+<button id="loginBtn">Googleログイン</button>
+<button id="logoutBtn" style="display:none;">ログアウト</button>
+
+<div class="card">
+<h3>収支入力</h3>
+
+<input id="date" type="date">
+<input id="bet" type="number" placeholder="投資">
+<input id="pay" type="number" placeholder="回収">
+
+<select id="place">
+<option value="">競馬場選択</option>
+<option>東京</option>
+<option>札幌</option>
+<option>函館</option>
+<option>福島</option>
+<option>中山</option>
+<option>新潟</option>
+<option>中京</option>
+<option>京都</option>
+<option>阪神</option>
+<option>小倉</option>
+</select>
+
+<input id="jockey" placeholder="騎手">
+
+<select id="type">
+<option>単勝</option>
+<option>複勝</option>
+<option>ワイド</option>
+<option>馬連</option>
+<option>馬単</option>
+<option>3連複</option>
+<option>3連単</option>
+</select>
+
+<button id="saveBtn">保存</button>
+</div>
+
+<div class="card">
+<h3>フィルター</h3>
+<select id="filterType">
+<option value="all">全て</option>
+<option>単勝</option>
+<option>複勝</option>
+<option>ワイド</option>
+<option>馬連</option>
+<option>馬単</option>
+<option>3連複</option>
+<option>3連単</option>
+</select>
+
+<input id="filterMonth" type="month">
+<button onclick="loadData()">適用</button>
+</div>
+
+<div class="card"><h3>📊 収支</h3><div id="summary"></div></div>
+<div class="card"><h3>📋 履歴</h3><div id="history"></div></div>
+<div class="card"><h3>🏟 競馬場別</h3><div id="placeStats"></div></div>
+<div class="card"><h3>🏇 騎手別</h3><div id="jockeyStats"></div></div>
+
 <script type="module">
 
+/* 🔥 これだけ追加（重要） */
 const loginBtn = document.getElementById("loginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const userInfo = document.getElementById("userInfo");
@@ -27,8 +117,9 @@ getFirestore, collection, addDoc, getDocs,
 query, orderBy, deleteDoc, doc, updateDoc
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
+/* 🔥 Firebase設定（必ず実値） */
 const app = initializeApp({
-apiKey: "あなたのAPIキー",
+apiKey: "AIzaSyA8K2ulpBeavYfDYLBhgAYax5TCrUekds8",
 authDomain: "keiba-dashboard-1f6c4.firebaseapp.com",
 projectId: "keiba-dashboard-1f6c4"
 });
@@ -38,57 +129,47 @@ const db = getFirestore(app);
 
 let user = null;
 
-/* ログイン */
 loginBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
 logoutBtn.onclick = () => signOut(auth);
 
-/* 状態監視 */
 onAuthStateChanged(auth,(u)=>{
 user=u;
-
 if(u){
-  userInfo.innerText="ログイン:"+u.email;
-  loginBtn.style.display="none";
-  logoutBtn.style.display="inline";
-  loadData();
+userInfo.innerText="ログイン:"+u.email;
+loginBtn.style.display="none";
+logoutBtn.style.display="inline";
+loadData();
 }else{
-  userInfo.innerText="未ログイン";
-  loginBtn.style.display="inline";
-  logoutBtn.style.display="none";
+userInfo.innerText="未ログイン";
+loginBtn.style.display="inline";
+logoutBtn.style.display="none";
 }
 });
 
-/* 保存 */
 saveBtn.onclick = async () => {
 if(!user){
-  alert("ログインしてください");
-  return;
+alert("ログインしてください");
+return;
 }
 
-try{
-  await addDoc(collection(db,"bets"),{
-    uid:user.uid,
-    date:date.value,
-    bet:+bet.value,
-    pay:+pay.value,
-    type:type.value,
-    place:place.value || "未設定",
-    jockey:jockey.value || "未設定",
-    createdAt:new Date()
-  });
-  loadData();
-}catch(e){
-  alert("保存エラー:"+e.message);
-}
+await addDoc(collection(db,"bets"),{
+uid:user.uid,
+date:date.value,
+bet:+bet.value,
+pay:+pay.value,
+type:type.value,
+place:place.value || "未設定",
+jockey:jockey.value || "未設定",
+createdAt:new Date()
+});
+loadData();
 };
 
-/* 削除 */
 window.del = async (id)=>{
 await deleteDoc(doc(db,"bets",id));
 loadData();
 };
 
-/* 編集 */
 window.edit = async (id,v)=>{
 const b=prompt("投資",v.bet);
 const p=prompt("回収",v.pay);
@@ -96,16 +177,13 @@ await updateDoc(doc(db,"bets",id),{bet:+b,pay:+p});
 loadData();
 };
 
-/* 読み込み */
 async function loadData(){
 
-if(!user) return; // ←追加（重要）
-
-try{
 const snap = await getDocs(query(collection(db,"bets"),orderBy("createdAt","desc")));
 
 let tb=0,tp=0;
 let placeObj={}, jockeyObj={};
+
 let html="";
 
 snap.forEach(d=>{
@@ -137,15 +215,22 @@ summary.innerHTML=`
 回収率:${tb?((tp/tb)*100).toFixed(2):0}%
 `;
 
-placeStats.innerHTML = Object.keys(placeObj).map(k=>`${k}:${placeObj[k].p-placeObj[k].b}`).join("<br>");
-jockeyStats.innerHTML = Object.keys(jockeyObj).map(k=>`${k}:${jockeyObj[k].p-jockeyObj[k].b}`).join("<br>");
+let phtml="";
+for(let k in placeObj){
+phtml+=`${k}:${placeObj[k].p-placeObj[k].b}<br>`;
+}
+placeStats.innerHTML=phtml;
+
+let jhtml="";
+for(let k in jockeyObj){
+jhtml+=`${k}:${jockeyObj[k].p-jockeyObj[k].b}<br>`;
+}
+jockeyStats.innerHTML=jhtml;
 
 history.innerHTML=html;
-
-}catch(e){
-console.error(e);
-alert("読み込みエラー:"+e.message);
-}
 }
 
 </script>
+
+</body>
+</html>
