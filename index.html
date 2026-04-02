@@ -9,9 +9,7 @@
 <style>
 body { font-family:sans-serif; background:#f5f5f5; padding:15px; }
 .card { background:#fff; padding:15px; margin:10px 0; border-radius:10px; }
-
 input, select, button { padding:8px; margin:5px; }
-
 .hidden { display:none; }
 </style>
 </head>
@@ -25,7 +23,6 @@ input, select, button { padding:8px; margin:5px; }
 <button id="loginBtn">Googleログイン</button>
 <button id="logoutBtn" style="display:none;">ログアウト</button>
 
-<!-- 入力 -->
 <div class="card">
 <h3>収支入力</h3>
 
@@ -48,7 +45,12 @@ input, select, button { padding:8px; margin:5px; }
 </optgroup>
 </select>
 
-<!-- 騎手選択 -->
+<!-- 遠征対応 -->
+<label>
+<input type="checkbox" id="allJockeyToggle">
+全騎手表示（遠征対応）
+</label>
+
 <div>
 <select id="jockey1"></select>
 <select id="jockey2" class="hidden"></select>
@@ -68,7 +70,7 @@ input, select, button { padding:8px; margin:5px; }
 <button id="saveBtn">保存</button>
 </div>
 
-<!-- 以下既存そのまま -->
+<!-- 以下そのまま -->
 <div class="card"><h3>📊 収支</h3><div id="summary"></div></div>
 <div class="card"><h3>📋 履歴</h3><div id="history"></div></div>
 <div class="card"><h3>🏟 競馬場別</h3><div id="placeStats"></div></div>
@@ -76,50 +78,63 @@ input, select, button { padding:8px; margin:5px; }
 
 <script type="module">
 
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import {
-getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-
-import {
-getFirestore, collection, addDoc, getDocs,
-query, orderBy, deleteDoc, doc, updateDoc
-} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-
-/* ===== 騎手データ ===== */
-const jockeyList = [
-"秋山稔樹","五十嵐雄祐","池添謙一","石川裕紀人","石神深一","石神深道","石田拓郎","石橋脩",
-"泉谷楓真","伊藤工真","井上敏樹","今村聖奈","岩田望来","岩田康誠","岩部純二","上里直汰",
-"上野翔","内田博幸","江田照男","江田勇亮","遠藤汰月","大江原圭","大久保友雅","大野拓弥",
-"岡田祥嗣","荻野極","荻野琢真","小沢大仁","小野寺祐太","加藤祥太","金子光希","亀田温心",
-"川須栄彦","川田将雅","河原田菜々","川端海翼","川又賢治","菊沢一樹","北村宏司","北村友一",
-"城戸義政","草野太郎","クリストフ・ルメール","黒岩悠","国分恭介","国分優作","小坂忠士",
-"小崎綾也","小林脩斗","小林美駒","小林凌大","小牧加矢太","木幡育也","木幡巧也","木幡初也",
-"斎藤新","酒井学","坂井瑠星","坂口智康","佐々木大輔","佐藤翔馬","鮫島克駿","鮫島良太",
-"柴田大知","柴田善臣","柴田裕一郎","嶋田純次","菅原隆一","菅原明良","杉原誠人","高倉稜",
-"高杉吏麒","高田潤","田口貫太","武豊","田辺裕信","谷原柚希","田村太雅","田山旺佑","丹内祐次",
-"太宰啓介","団野大成","土田真翔","角田大和","津村明秀","戸崎圭太","富田暁","中井裕二",
-"中村将之","長岡禎仁","永島まなみ","長浜鴻緒","難波剛健","西谷誠","西塚洸二","西村淳也",
-"西村太一","野中悠太郎","橋木太希","浜中俊","原優介","原田和真","伴啓太","菱田裕二",
-"藤懸貴志","舟山瑠泉","古川奈穂","古川吉洋","松岡正海","松本大輝","松山弘平","松若風馬",
-"的場勇人","黛弘人","丸田恭介","丸山元気","三浦皇成","水沼元輝","蓑島靖典","幸英明",
-"ミルコ・デムーロ","武藤雅","森一馬","森田誠也","横山和生","横山武史","横山典弘","横山琉人",
-"吉田隼人","吉田豊","吉村誠之助","鷲頭虎太","和田陽希"
+/* ===== 中央騎手 ===== */
+const centralJockeys = [
+"秋山稔樹","池添謙一","川田将雅","武豊","クリストフ・ルメール","戸崎圭太","横山武史"
 ];
 
-/* プルダウン生成 */
-function setJockeyOptions(select){
-select.innerHTML = '<option value="">騎手選択</option>';
-jockeyList.forEach(j=>{
+/* ===== 地方騎手（全追加） ===== */
+const localJockeys = [
+"阿部龍","石川倭","岩橋勇二","落合玄太","小野楓馬","桑村真明","服部茂史",
+"赤塚健仁","阿部武臣","菊池一樹","西謙一","鈴木恵介",
+"阿部英俊","岩本怜","高松亮","村上忍",
+"笹川翼","御神本訓史","矢野貴之","森泰斗","吉原寛人",
+"本田正重","和田譲治","山崎誠士","町田直希",
+"青柳正義","吉原寛人",
+"今井貴大","丸野勝虎",
+"大山真吾","吉村智洋",
+"赤岡修次","永森大智","宮川実",
+"山口勲"
+];
+
+/* ===== 競馬場 ===== */
+const centralPlaces = ["東京","札幌","函館","福島","中山","新潟","中京","京都","阪神","小倉"];
+
+/* ===== 全騎手 ===== */
+const allJockeys = [...new Set([...centralJockeys, ...localJockeys])];
+
+/* ===== プルダウン生成 ===== */
+function setJockeyOptions(list){
+[jockey1,jockey2,jockey3].forEach(select=>{
+select.innerHTML='<option value="">騎手選択</option>';
+list.forEach(j=>{
 select.innerHTML += `<option>${j}</option>`;
+});
 });
 }
 
-setJockeyOptions(jockey1);
-setJockeyOptions(jockey2);
-setJockeyOptions(jockey3);
+/* ===== 初期 ===== */
+setJockeyOptions(centralJockeys);
 
-/* 券種で制御 */
+/* ===== 切替ロジック ===== */
+function updateJockeyList(){
+
+if(allJockeyToggle.checked){
+setJockeyOptions(allJockeys);
+return;
+}
+
+let list = centralPlaces.includes(place.value)
+? centralJockeys
+: localJockeys;
+
+setJockeyOptions(list);
+}
+
+place.onchange = updateJockeyList;
+allJockeyToggle.onchange = updateJockeyList;
+
+/* ===== 券種制御 ===== */
 type.onchange = ()=>{
 jockey2.classList.add("hidden");
 jockey3.classList.add("hidden");
@@ -133,7 +148,17 @@ jockey3.classList.remove("hidden");
 }
 };
 
-/* Firebase */
+/* ===== Firebase（そのまま） ===== */
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+import {
+getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
+
+import {
+getFirestore, collection, addDoc, getDocs,
+query, orderBy, deleteDoc, doc
+} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
+
 const app = initializeApp({
 apiKey:"YOUR_KEY",
 authDomain:"YOUR_DOMAIN",
@@ -158,7 +183,7 @@ loadData();
 }
 });
 
-/* 保存 */
+/* ===== 保存 ===== */
 saveBtn.onclick=async()=>{
 let j=[jockey1.value,jockey2.value,jockey3.value].filter(v=>v);
 await addDoc(collection(db,"bets"),{
@@ -174,29 +199,34 @@ createdAt:new Date()
 loadData();
 };
 
-/* 以下既存そのまま */
+/* ===== 表示 ===== */
 window.del=async(id)=>{await deleteDoc(doc(db,"bets",id));loadData();};
 
 async function loadData(){
 const snap=await getDocs(query(collection(db,"bets"),orderBy("createdAt","desc")));
-let tb=0,tp=0,place={},jockey={};
+let tb=0,tp=0,placeStatsObj={},jockeyStatsObj={};
 let html="";
 snap.forEach(d=>{
 const v=d.data();
 if(v.uid!==user.uid)return;
 tb+=v.bet; tp+=v.pay;
-place[v.place]=(place[v.place]||{b:0,p:0});
-place[v.place].b+=v.bet; place[v.place].p+=v.pay;
-jockey[v.jockey]=(jockey[v.jockey]||{b:0,p:0});
-jockey[v.jockey].b+=v.bet; jockey[v.jockey].p+=v.pay;
+
+placeStatsObj[v.place]=(placeStatsObj[v.place]||{b:0,p:0});
+placeStatsObj[v.place].b+=v.bet;
+placeStatsObj[v.place].p+=v.pay;
+
+jockeyStatsObj[v.jockey]=(jockeyStatsObj[v.jockey]||{b:0,p:0});
+jockeyStatsObj[v.jockey].b+=v.bet;
+jockeyStatsObj[v.jockey].p+=v.pay;
+
 html+=`<div>${v.date} ${v.type} ${v.place} ${v.jockey}
 投資:${v.bet} 回収:${v.pay}
 <button onclick="del('${d.id}')">削除</button></div>`;
 });
-summary.innerHTML=`投資:${tb} 回収:${tp} 回収率:${tb?((tp/tb)*100).toFixed(2):0}%`;
 
-placeStats.innerHTML=Object.keys(place).map(k=>`${k}:${place[k].p-place[k].b}`).join("<br>");
-jockeyStats.innerHTML=Object.keys(jockey).map(k=>`${k}:${jockey[k].p-jockey[k].b}`).join("<br>");
+summary.innerHTML=`投資:${tb} 回収:${tp} 回収率:${tb?((tp/tb)*100).toFixed(2):0}%`;
+placeStats.innerHTML=Object.keys(placeStatsObj).map(k=>`${k}:${placeStatsObj[k].p-placeStatsObj[k].b}`).join("<br>");
+jockeyStats.innerHTML=Object.keys(jockeyStatsObj).map(k=>`${k}:${jockeyStatsObj[k].p-jockeyStatsObj[k].b}`).join("<br>");
 history.innerHTML=html;
 }
 
