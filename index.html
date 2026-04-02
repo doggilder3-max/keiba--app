@@ -8,287 +8,243 @@
 
 <style>
 body { font-family:sans-serif; background:#f5f5f5; padding:15px; }
-
 .card { background:#fff; padding:15px; margin:10px 0; border-radius:10px; }
 
-input, select, button { padding:8px; margin:5px; cursor:pointer; }
-
-#userInfo { font-weight:bold; margin:10px 0; }
+input, select, button { padding:8px; margin:5px; }
 
 .good { color:green; font-weight:bold; }
 .bad { color:red; font-weight:bold; }
 
-.deleteBtn, .editBtn{
-  border:none;
-  padding:5px 8px;
-  border-radius:5px;
-  cursor:pointer;
-  font-size:12px;
-  margin-left:5px;
-}
-
-.deleteBtn{ background:#ff4d4d; color:#fff; }
-.editBtn{ background:#4d79ff; color:#fff; }
+.deleteBtn { background:#ff4d4d; color:#fff; border:none; padding:5px; }
+.editBtn { background:#4d79ff; color:#fff; padding:5px; }
 </style>
-
 </head>
+
 <body>
 
 <h2>🏇 競馬収支ダッシュボード</h2>
 
-<div id="userInfo">未ログイン</div>
+<div id="userInfo"></div>
 
 <button id="loginBtn">Googleログイン</button>
 <button id="logoutBtn" style="display:none;">ログアウト</button>
 
 <!-- 入力 -->
 <div class="card">
-  <h3>収支入力</h3>
+<h3>収支入力</h3>
 
-  <input id="date" type="date">
-  <input id="bet" type="number" placeholder="投資額">
-  <input id="pay" type="number" placeholder="回収額">
+<input id="date" type="date">
+<input id="bet" type="number" placeholder="投資">
+<input id="pay" type="number" placeholder="回収">
 
-  <!-- ★追加：競馬場 -->
-  <input id="place" type="text" placeholder="競馬場（東京・中山など）">
+<!-- 競馬場（中央・地方分割） -->
+<select id="place">
+<option value="">競馬場選択</option>
 
-  <!-- ★追加：騎手 -->
-  <input id="jockey" type="text" placeholder="騎手（川田・ルメールなど）">
+<optgroup label="中央競馬">
+<option>東京</option>
+<option>札幌</option>
+<option>函館</option>
+<option>福島</option>
+<option>中山</option>
+<option>新潟</option>
+<option>中京</option>
+<option>京都</option>
+<option>阪神</option>
+<option>小倉</option>
+</optgroup>
 
-  <select id="type">
-    <option>単勝</option>
-    <option>複勝</option>
-    <option>ワイド</option>
-    <option>馬連</option>
-    <option>馬単</option>
-    <option>3連複</option>
-    <option>3連単</option>
-  </select>
+<optgroup label="地方競馬">
+<option>帯広</option>
+<option>門別</option>
+<option>盛岡</option>
+<option>水沢</option>
+<option>浦和</option>
+<option>船橋</option>
+<option>大井</option>
+<option>川崎</option>
+<option>金沢</option>
+<option>笠松</option>
+<option>名古屋</option>
+<option>園田</option>
+<option>姫路</option>
+<option>高知</option>
+<option>佐賀</option>
+</optgroup>
 
-  <button id="saveBtn">保存</button>
+</select>
+
+<!-- 騎手 -->
+<input id="jockey" placeholder="騎手">
+
+<select id="type">
+<option>単勝</option>
+<option>複勝</option>
+<option>ワイド</option>
+<option>馬連</option>
+<option>馬単</option>
+<option>3連複</option>
+<option>3連単</option>
+</select>
+
+<button id="saveBtn">保存</button>
 </div>
 
 <!-- フィルター -->
 <div class="card">
-  <h3>🔍 フィルター</h3>
+<h3>フィルター</h3>
+<select id="filterType">
+<option value="all">全て</option>
+<option>単勝</option>
+<option>複勝</option>
+<option>ワイド</option>
+<option>馬連</option>
+<option>馬単</option>
+<option>3連複</option>
+<option>3連単</option>
+</select>
 
-  <select id="filterType">
-    <option value="all">全て</option>
-    <option>単勝</option>
-    <option>複勝</option>
-    <option>ワイド</option>
-    <option>馬連</option>
-    <option>馬単</option>
-    <option>3連複</option>
-    <option>3連単</option>
-  </select>
-
-  <input id="filterMonth" type="month">
-
-  <button onclick="loadData()">適用</button>
+<input id="filterMonth" type="month">
+<button onclick="loadData()">適用</button>
 </div>
 
-<!-- サマリー -->
+<!-- 集計 -->
 <div class="card">
-  <h3>📊 収支合計</h3>
-  <div id="summary"></div>
-</div>
-
-<!-- グラフ -->
-<div class="card">
-  <h3>📈 収支グラフ</h3>
-  <canvas id="chart"></canvas>
+<h3>📊 収支</h3>
+<div id="summary"></div>
 </div>
 
 <!-- 履歴 -->
 <div class="card">
-  <h3>📋 履歴</h3>
-  <div id="history"></div>
+<h3>📋 履歴</h3>
+<div id="history"></div>
 </div>
 
-<!-- 月別 -->
+<!-- 競馬場別 -->
 <div class="card">
-  <h3>🗓 月別集計</h3>
-  <div id="monthly"></div>
+<h3>🏟 競馬場別</h3>
+<div id="placeStats"></div>
 </div>
 
-<!-- ★追加：競馬場別 -->
+<!-- 騎手別 -->
 <div class="card">
-  <h3>🏟 競馬場別収支</h3>
-  <div id="placeStats"></div>
-</div>
-
-<!-- ★追加：騎手別 -->
-<div class="card">
-  <h3>🏇 騎手別収支</h3>
-  <div id="jockeyStats"></div>
+<h3>🏇 騎手別</h3>
+<div id="jockeyStats"></div>
 </div>
 
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import {
-  getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged
+getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
 import {
-  getFirestore, collection, addDoc, getDocs,
-  query, orderBy, deleteDoc, doc, updateDoc
+getFirestore, collection, addDoc, getDocs,
+query, orderBy, deleteDoc, doc, updateDoc
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-const firebaseConfig = {
-  apiKey: "AIzaSyA8K2ulpBeavYfDYLBhgAYax5TCrUekds8",
-  authDomain: "keiba-dashboard-1f6c4.firebaseapp.com",
-  projectId: "keiba-dashboard-1f6c4",
-};
+const app = initializeApp({
+apiKey:"YOUR_KEY",
+authDomain:"YOUR_DOMAIN",
+projectId:"YOUR_ID"
+});
 
-const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let currentUser = null;
-let chartInstance = null;
+let user = null;
 
-// =====================
 loginBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
 logoutBtn.onclick = () => signOut(auth);
 
-// =====================
-onAuthStateChanged(auth, (user) => {
-  currentUser = user;
-
-  if (user) {
-    userInfo.innerText = `ログイン中：${user.email}`;
-    loginBtn.style.display = "none";
-    logoutBtn.style.display = "inline-block";
-    loadData();
-  } else {
-    userInfo.innerText = "未ログイン";
-    loginBtn.style.display = "inline-block";
-    logoutBtn.style.display = "none";
-  }
+onAuthStateChanged(auth,(u)=>{
+user=u;
+if(u){
+userInfo.innerText="ログイン:"+u.email;
+loginBtn.style.display="none";
+logoutBtn.style.display="inline";
+loadData();
+}
 });
 
-// =====================
-// 保存
-// =====================
 saveBtn.onclick = async () => {
-
-  if (!currentUser) return alert("ログインしてください");
-
-  await addDoc(collection(db,"bets"), {
-    uid: currentUser.uid,
-    date: date.value,
-    bet: Number(bet.value),
-    pay: Number(pay.value),
-    type: type.value,
-
-    // ★追加
-    place: place.value,
-    jockey: jockey.value,
-
-    createdAt: new Date()
-  });
-
-  loadData();
+await addDoc(collection(db,"bets"),{
+uid:user.uid,
+date:date.value,
+bet:+bet.value,
+pay:+pay.value,
+type:type.value,
+place:place.value || "未設定",
+jockey:jockey.value || "未設定",
+createdAt:new Date()
+});
+loadData();
 };
 
-// =====================
-// 削除
-// =====================
-window.del = async (id) => {
-  await deleteDoc(doc(db,"bets",id));
-  loadData();
+window.del = async (id)=>{
+await deleteDoc(doc(db,"bets",id));
+loadData();
 };
 
-// =====================
-// 編集
-// =====================
-window.edit = async (id, v) => {
-
-  const newBet = prompt("投資額", v.bet);
-  const newPay = prompt("回収額", v.pay);
-
-  await updateDoc(doc(db,"bets",id), {
-    bet: Number(newBet),
-    pay: Number(newPay)
-  });
-
-  loadData();
+window.edit = async (id,v)=>{
+const b=prompt("投資",v.bet);
+const p=prompt("回収",v.pay);
+await updateDoc(doc(db,"bets",id),{bet:+b,pay:+p});
+loadData();
 };
 
-// =====================
-// データ取得
-// =====================
-async function loadData() {
+async function loadData(){
 
-  if (!currentUser) return;
+const snap = await getDocs(query(collection(db,"bets"),orderBy("createdAt","desc")));
 
-  const q = query(collection(db,"bets"), orderBy("createdAt","desc"));
-  const snap = await getDocs(q);
+let tb=0,tp=0;
+let place={}, jockey={};
 
-  let totalBet = 0;
-  let totalPay = 0;
+let html="";
 
-  let placeStats = {};
-  let jockeyStats = {};
+snap.forEach(d=>{
+const v=d.data();
+if(v.uid!==user.uid)return;
 
-  let html = "";
+tb+=v.bet;
+tp+=v.pay;
 
-  snap.forEach(d => {
+place[v.place]=(place[v.place]||{b:0,p:0});
+place[v.place].b+=v.bet;
+place[v.place].p+=v.pay;
 
-    const v = d.data();
+jockey[v.jockey]=(jockey[v.jockey]||{b:0,p:0});
+jockey[v.jockey].b+=v.bet;
+jockey[v.jockey].p+=v.pay;
 
-    if (v.uid !== currentUser.uid) return;
+html+=`
+<div>
+${v.date} ${v.type} ${v.place} ${v.jockey}
+投資:${v.bet} 回収:${v.pay}
+<button onclick='edit("${d.id}",${JSON.stringify(v)})'>修正</button>
+<button onclick="del('${d.id}')">削除</button>
+</div>`;
+});
 
-    totalBet += v.bet;
-    totalPay += v.pay;
+summary.innerHTML=`
+投資:${tb} 回収:${tp}
+回収率:${tb?((tp/tb)*100).toFixed(2):0}%
+`;
 
-    // ★競馬場集計
-    if (!placeStats[v.place]) placeStats[v.place] = {bet:0,pay:0};
-    placeStats[v.place].bet += v.bet;
-    placeStats[v.place].pay += v.pay;
+let phtml="";
+for(let k in place){
+phtml+=`${k}:${place[k].p-place[k].b}<br>`;
+}
+placeStats.innerHTML=phtml;
 
-    // ★騎手集計
-    if (!jockeyStats[v.jockey]) jockeyStats[v.jockey] = {bet:0,pay:0};
-    jockeyStats[v.jockey].bet += v.bet;
-    jockeyStats[v.jockey].pay += v.pay;
+let jhtml="";
+for(let k in jockey){
+jhtml+=`${k}:${jockey[k].p-jockey[k].b}<br>`;
+}
+jockeyStats.innerHTML=jhtml;
 
-    html += `
-      <div>
-        ${v.date} | ${v.type} | ${v.place || "-"} | ${v.jockey || "-"}
-        投資:${v.bet} 回収:${v.pay}
-        <button class="editBtn" onclick='edit("${d.id}",${JSON.stringify(v)})'>修正</button>
-        <button class="deleteBtn" onclick="del('${d.id}')">削除</button>
-      </div>
-    `;
-  });
-
-  const rate = totalBet ? (totalPay / totalBet) * 100 : 0;
-
-  summary.innerHTML = `
-    <p>総投資：${totalBet}</p>
-    <p>総回収：${totalPay}</p>
-    <p class="${rate>=100?'good':'bad'}">回収率：${rate.toFixed(2)}%</p>
-  `;
-
-  history.innerHTML = html;
-
-  // ★競馬場表示
-  let phtml = "";
-  for (let k in placeStats) {
-    const r = placeStats[k].pay - placeStats[k].bet;
-    phtml += `<div>${k || "未設定"}：${r}円</div>`;
-  }
-  placeStatsDiv.innerHTML = phtml;
-
-  // ★騎手表示
-  let jhtml = "";
-  for (let k in jockeyStats) {
-    const r = jockeyStats[k].pay - jockeyStats[k].bet;
-    jhtml += `<div>${k || "未設定"}：${r}円</div>`;
-  }
-  jockeyStatsDiv.innerHTML = jhtml;
+history.innerHTML=html;
 }
 
 </script>
