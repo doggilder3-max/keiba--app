@@ -407,6 +407,7 @@ border:1px solid #f1e3a0;
 <button class="planBtnFree" onclick="window.setPlanOverride('free')">無料表示で確認</button>
 <button class="planBtnPremium" onclick="window.setPlanOverride('premium')">有料表示で確認</button>
 <button onclick="window.clearPlanOverride()">サーバープランに戻す</button>
+<button class="planBtnPremium" onclick="window.goPremiumStripe()">プレミアム登録（月500円）</button>
 </div>
 </div>
 </div>
@@ -828,6 +829,10 @@ let placeProfitChartInstance = null;
 let user = null;
 let currentPlan = "free";
 let serverPlan = "free";
+
+window.goPremiumStripe = () => {
+window.location.href = "https://buy.stripe.com/7sYaEP34s60Hehc0qsbQY00";
+};
 
 function todayString(){
 const now = new Date();
