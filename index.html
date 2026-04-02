@@ -45,12 +45,13 @@ input, select, button { padding:8px; margin:5px; }
 <input id="pay" type="number" placeholder="回収">
 
 <div>
-<button type="button" class="quickBtn" onclick="setBetAmount(100)">100円</button>
-<button type="button" class="quickBtn" onclick="setBetAmount(300)">300円</button>
-<button type="button" class="quickBtn" onclick="setBetAmount(500)">500円</button>
-<button type="button" class="quickBtn" onclick="setBetAmount(1000)">1000円</button>
-<button type="button" class="quickBtn" onclick="setBetAmount(3000)">3000円</button>
-<button type="button" class="quickBtn" onclick="setBetAmount(5000)">5000円</button>
+<button type="button" class="quickBtn" onclick="addBetAmount(100)">100円</button>
+<button type="button" class="quickBtn" onclick="addBetAmount(300)">300円</button>
+<button type="button" class="quickBtn" onclick="addBetAmount(500)">500円</button>
+<button type="button" class="quickBtn" onclick="addBetAmount(1000)">1000円</button>
+<button type="button" class="quickBtn" onclick="addBetAmount(3000)">3000円</button>
+<button type="button" class="quickBtn" onclick="addBetAmount(5000)">5000円</button>
+<button type="button" class="quickBtn" onclick="clearBetAmount()">クリア</button>
 </div>
 
 <select id="raceCategory">
@@ -305,8 +306,13 @@ date.value = todayString();
 }
 }
 
-window.setBetAmount = (amount) => {
-bet.value = amount;
+window.addBetAmount = (amount) => {
+const current = Number(bet.value || 0);
+bet.value = current + amount;
+};
+
+window.clearBetAmount = () => {
+bet.value = "";
 };
 
 function restoreLastSelections(){
@@ -559,6 +565,7 @@ createdAt:new Date()
 });
 
 setInitialDate();
+bet.value = "";
 pay.value = "";
 raceName.value = "";
 raceClass.value = "";
@@ -716,6 +723,7 @@ if(!user) return;
 const snap = await getDocs(query(collection(db,"bets"),orderBy("createdAt","desc")));
 
 let filteredBet=0, filteredPay=0;
+let dayBet=0, dayPay=0;
 let monthBet=0, monthPay=0;
 let yearBet=0, yearPay=0;
 
@@ -723,6 +731,7 @@ let placeObj={}, jockeyObj={}, typeObj={};
 let groupsMap = {};
 
 const today = new Date();
+const currentDay = todayString();
 const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 const currentYear = `${today.getFullYear()}`;
 
@@ -732,6 +741,11 @@ if(v.uid!==user.uid)return;
 
 const betVal = Number(v.bet || 0);
 const payVal = Number(v.pay || 0);
+
+if(v.date === currentDay){
+dayBet += betVal;
+dayPay += payVal;
+}
 
 if(v.date && v.date.startsWith(currentMonth)){
 monthBet += betVal;
@@ -797,6 +811,7 @@ const groups = Object.values(groupsMap).sort((a,b)=> b.createdAt - a.createdAt);
 
 summary.innerHTML=`
 <div>投資:${filteredBet} 回収:${filteredPay} 回収率:${calcRate(filteredPay,filteredBet)}%</div>
+<div style="margin-top:8px;">当日の収支: <span class="${profitClass(dayPay - dayBet)}">${dayPay - dayBet}</span> （投資:${dayBet} / 回収:${dayPay} / 回収率:${calcRate(dayPay,dayBet)}%）</div>
 <div style="margin-top:8px;">当月収支: <span class="${profitClass(monthPay - monthBet)}">${monthPay - monthBet}</span> （投資:${monthBet} / 回収:${monthPay} / 回収率:${calcRate(monthPay,monthBet)}%）</div>
 <div style="margin-top:8px;">今年の収支: <span class="${profitClass(yearPay - yearBet)}">${yearPay - yearBet}</span> （投資:${yearBet} / 回収:${yearPay} / 回収率:${calcRate(yearPay,yearBet)}%）</div>
 `;
