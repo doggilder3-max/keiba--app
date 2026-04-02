@@ -7,62 +7,335 @@
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body { font-family:sans-serif; background:#f5f5f5; padding:15px; }
-.card { background:#fff; padding:15px; margin:10px 0; border-radius:10px; }
+* { box-sizing:border-box; }
 
-input, select, button { padding:8px; margin:5px; }
+body {
+font-family:sans-serif;
+background:#f5f5f5;
+padding:15px;
+margin:0;
+color:#222;
+}
 
-.good { color:green; font-weight:bold; }
-.bad { color:red; font-weight:bold; }
+h2, h3, h4 {
+margin-top:0;
+}
 
-.deleteBtn { background:#ff4d4d; color:#fff; border:none; padding:5px; }
-.editBtn { background:#4d79ff; color:#fff; border:none; padding:5px; }
+.dashboardHeader {
+background:#fff;
+padding:18px;
+margin:10px 0 16px 0;
+border-radius:14px;
+box-shadow:0 2px 10px rgba(0,0,0,0.05);
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:10px;
+flex-wrap:wrap;
+}
 
-.quickBtn { padding:6px 10px; }
-.raceGroup { border:1px solid #ddd; border-radius:8px; padding:10px; margin:10px 0; background:#fafafa; }
-.raceHeader { font-weight:bold; margin-bottom:8px; }
-.raceSub { font-size:14px; margin-bottom:8px; }
-.entryRow { padding:6px 0; border-top:1px solid #eee; }
-.entryRow:first-of-type { border-top:none; }
-.rankRow { margin:4px 0; }
+.headerLeft {
+display:flex;
+flex-direction:column;
+gap:8px;
+}
 
-.chartWrap { position:relative; width:100%; height:320px; }
+.headerTitle {
+font-size:28px;
+font-weight:bold;
+}
+
+.headerSub {
+font-size:14px;
+color:#666;
+}
+
+.authArea {
+display:flex;
+align-items:center;
+gap:8px;
+flex-wrap:wrap;
+}
+
+.card {
+background:#fff;
+padding:16px;
+margin:10px 0;
+border-radius:14px;
+box-shadow:0 2px 10px rgba(0,0,0,0.05);
+}
+
+.sectionTitle {
+display:flex;
+justify-content:space-between;
+align-items:center;
+gap:8px;
+margin-bottom:10px;
+flex-wrap:wrap;
+}
+
+.sectionTitle h3 {
+margin:0;
+font-size:20px;
+}
+
+.inputGrid {
+display:grid;
+grid-template-columns:repeat(auto-fit, minmax(180px, 1fr));
+gap:10px;
+align-items:end;
+}
+
+.inputRowWide {
+grid-column:1 / -1;
+}
+
+input, select, button {
+padding:10px;
+margin:0;
+border-radius:10px;
+border:1px solid #d8d8d8;
+font-size:14px;
+background:#fff;
+}
+
+button {
+cursor:pointer;
+border:none;
+background:#222;
+color:#fff;
+}
+
+button:hover {
+opacity:0.92;
+}
+
+#loginBtn {
+background:#2f6fed;
+}
+
+#logoutBtn {
+background:#666;
+}
+
+#saveBtn {
+background:#111;
+font-weight:bold;
+}
+
+.quickButtonRow {
+display:flex;
+flex-wrap:wrap;
+gap:8px;
+margin-top:10px;
+}
+
+.quickBtn {
+padding:8px 12px;
+background:#f1f3f5;
+color:#222;
+border:1px solid #ddd;
+}
+
+.quickBtn:hover {
+background:#e9ecef;
+}
+
+.good {
+color:#1f9d55;
+font-weight:bold;
+}
+
+.bad {
+color:#e03131;
+font-weight:bold;
+}
+
+.neutral {
+color:#666;
+font-weight:bold;
+}
+
+.summaryGrid {
+display:grid;
+grid-template-columns:repeat(auto-fit, minmax(190px, 1fr));
+gap:12px;
+margin-bottom:14px;
+}
+
+.summaryCard {
+background:linear-gradient(180deg, #ffffff 0%, #fafafa 100%);
+border:1px solid #ececec;
+border-radius:14px;
+padding:16px;
+box-shadow:0 1px 8px rgba(0,0,0,0.04);
+}
+
+.summaryLabel {
+font-size:13px;
+color:#666;
+margin-bottom:8px;
+}
+
+.summaryValue {
+font-size:28px;
+font-weight:bold;
+line-height:1.2;
+margin-bottom:8px;
+}
+
+.summarySub {
+font-size:13px;
+color:#555;
+line-height:1.5;
+}
+
+.dashboardGrid {
+display:grid;
+grid-template-columns:repeat(12, 1fr);
+gap:12px;
+}
+
+.gridCol12 { grid-column:span 12; }
+.gridCol8 { grid-column:span 8; }
+.gridCol6 { grid-column:span 6; }
+.gridCol4 { grid-column:span 4; }
+
+.chartWrap {
+position:relative;
+width:100%;
+height:300px;
+}
+
+.chartWrapTall {
+position:relative;
+width:100%;
+height:360px;
+}
+
+.filterRow {
+display:flex;
+flex-wrap:wrap;
+gap:10px;
+align-items:center;
+}
+
+.filterRow input,
+.filterRow select {
+min-width:160px;
+}
+
+.rankRow {
+margin:6px 0;
+padding:10px 12px;
+border:1px solid #eee;
+border-radius:10px;
+background:#fafafa;
+line-height:1.6;
+}
+
+.raceGroup {
+border:1px solid #e5e5e5;
+border-radius:12px;
+padding:12px;
+margin:10px 0;
+background:#fafafa;
+}
+
+.raceHeader {
+font-weight:bold;
+font-size:16px;
+margin-bottom:6px;
+}
+
+.raceSub {
+font-size:14px;
+margin-bottom:8px;
+line-height:1.6;
+}
+
+.entryRow {
+padding:8px 0;
+border-top:1px solid #eee;
+line-height:1.7;
+}
+
+.entryRow:first-of-type {
+border-top:none;
+}
+
+.infoNote {
+font-size:13px;
+color:#666;
+line-height:1.6;
+margin-bottom:10px;
+}
+
+.smallControlRow {
+display:flex;
+flex-wrap:wrap;
+gap:8px;
+align-items:center;
+margin-bottom:10px;
+}
+
+@media (max-width: 960px) {
+.gridCol8, .gridCol6, .gridCol4 { grid-column:span 12; }
+.chartWrap, .chartWrapTall { height:280px; }
+.summaryValue { font-size:24px; }
+.headerTitle { font-size:24px; }
+}
 </style>
 </head>
 
 <body>
 
-<h2>🏇 競馬収支ダッシュボード</h2>
-
+<div class="dashboardHeader">
+<div class="headerLeft">
+<div class="headerTitle">🏇 競馬収支ダッシュボード</div>
+<div class="headerSub">収支・騎手・競馬場・券種を一画面で分析</div>
 <div id="userInfo"></div>
-
-<button id="loginBtn">Googleログイン</button>
-<button id="logoutBtn" style="display:none;">ログアウト</button>
-
-<div class="card">
-<h3>収支入力</h3>
-
-<input id="date" type="date">
-<input id="bet" type="number" placeholder="投資">
-<input id="pay" type="number" placeholder="回収">
-
-<div>
-<button type="button" class="quickBtn" onclick="addBetAmount(100)">100円</button>
-<button type="button" class="quickBtn" onclick="addBetAmount(300)">300円</button>
-<button type="button" class="quickBtn" onclick="addBetAmount(500)">500円</button>
-<button type="button" class="quickBtn" onclick="addBetAmount(1000)">1000円</button>
-<button type="button" class="quickBtn" onclick="addBetAmount(3000)">3000円</button>
-<button type="button" class="quickBtn" onclick="addBetAmount(5000)">5000円</button>
-<button type="button" class="quickBtn" onclick="clearBetAmount()">クリア</button>
 </div>
 
-<select id="raceCategory">
+<div class="authArea">
+<button id="loginBtn">Googleログイン</button>
+<button id="logoutBtn" style="display:none;">ログアウト</button>
+</div>
+</div>
+
+<div class="card">
+<div class="sectionTitle">
+<h3>📝 収支入力</h3>
+</div>
+
+<div class="inputGrid">
+<div>
+<label>日付</label>
+<input id="date" type="date" style="width:100%;">
+</div>
+
+<div>
+<label>投資</label>
+<input id="bet" type="number" placeholder="投資" style="width:100%;">
+</div>
+
+<div>
+<label>回収</label>
+<input id="pay" type="number" placeholder="回収" style="width:100%;">
+</div>
+
+<div>
+<label>レース区分</label>
+<select id="raceCategory" style="width:100%;">
 <option>通常</option>
 <option>特別</option>
 <option>重賞</option>
 </select>
+</div>
 
-<select id="raceClass">
+<div>
+<label>クラス</label>
+<select id="raceClass" style="width:100%;">
 <option value="">クラス選択</option>
 <option>新馬</option>
 <option>未勝利</option>
@@ -73,10 +346,16 @@ input, select, button { padding:8px; margin:5px; }
 <option>障害未勝利</option>
 <option>障害オープン</option>
 </select>
+</div>
 
-<input id="raceName" type="text" placeholder="特別・重賞レース名" style="display:none;">
+<div>
+<label>レース名</label>
+<input id="raceName" type="text" placeholder="特別・重賞レース名" style="display:none; width:100%;">
+</div>
 
-<select id="raceNumber">
+<div>
+<label>R番号</label>
+<select id="raceNumber" style="width:100%;">
 <option value="">R選択</option>
 <option>1R</option>
 <option>2R</option>
@@ -91,15 +370,21 @@ input, select, button { padding:8px; margin:5px; }
 <option>11R</option>
 <option>12R</option>
 </select>
+</div>
 
-<select id="surface">
+<div>
+<label>芝 / ダート / 障害</label>
+<select id="surface" style="width:100%;">
 <option value="">芝/ダート</option>
 <option>芝</option>
 <option>ダート</option>
 <option>障害</option>
 </select>
+</div>
 
-<select id="place">
+<div>
+<label>競馬場</label>
+<select id="place" style="width:100%;">
 <option value="">競馬場選択</option>
 <option>東京</option>
 <option>札幌</option>
@@ -127,25 +412,11 @@ input, select, button { padding:8px; margin:5px; }
 <option>高知</option>
 <option>佐賀</option>
 </select>
+</div>
 
-<label style="display:inline-block; margin:5px;">
-<input type="checkbox" id="expeditionMode">
-交流重賞・遠征対応
-</label>
-
-<select id="jockey1">
-<option value="">騎手選択</option>
-</select>
-
-<select id="jockey2" style="display:none;">
-<option value="">騎手選択</option>
-</select>
-
-<select id="jockey3" style="display:none;">
-<option value="">騎手選択</option>
-</select>
-
-<select id="type">
+<div>
+<label>券種</label>
+<select id="type" style="width:100%;">
 <option>単勝</option>
 <option>複勝</option>
 <option>ワイド</option>
@@ -154,12 +425,54 @@ input, select, button { padding:8px; margin:5px; }
 <option>3連複</option>
 <option>3連単</option>
 </select>
+</div>
 
+<div>
+<label>騎手1</label>
+<select id="jockey1" style="width:100%;">
+<option value="">騎手選択</option>
+</select>
+</div>
+
+<div>
+<label>騎手2</label>
+<select id="jockey2" style="display:none; width:100%;">
+<option value="">騎手選択</option>
+</select>
+</div>
+
+<div>
+<label>騎手3</label>
+<select id="jockey3" style="display:none; width:100%;">
+<option value="">騎手選択</option>
+</select>
+</div>
+
+<div class="inputRowWide">
+<label style="display:inline-flex; align-items:center; gap:8px; margin-bottom:10px;">
+<input type="checkbox" id="expeditionMode">
+交流重賞・遠征対応
+</label>
+
+<div class="quickButtonRow">
+<button type="button" class="quickBtn" onclick="addBetAmount(100)">100円</button>
+<button type="button" class="quickBtn" onclick="addBetAmount(300)">300円</button>
+<button type="button" class="quickBtn" onclick="addBetAmount(500)">500円</button>
+<button type="button" class="quickBtn" onclick="addBetAmount(1000)">1000円</button>
+<button type="button" class="quickBtn" onclick="addBetAmount(3000)">3000円</button>
+<button type="button" class="quickBtn" onclick="addBetAmount(5000)">5000円</button>
+<button type="button" class="quickBtn" onclick="clearBetAmount()">クリア</button>
 <button id="saveBtn">保存</button>
+</div>
+</div>
+</div>
 </div>
 
 <div class="card">
-<h3>フィルター</h3>
+<div class="sectionTitle">
+<h3>🔎 フィルター</h3>
+</div>
+<div class="filterRow">
 <select id="filterType">
 <option value="all">全て</option>
 <option>単勝</option>
@@ -174,42 +487,101 @@ input, select, button { padding:8px; margin:5px; }
 <input id="filterMonth" type="month">
 <button onclick="loadData()">適用</button>
 </div>
+</div>
 
-<div class="card"><h3>📊 収支</h3><div id="summary"></div></div>
+<div class="summaryGrid">
+<div class="summaryCard">
+<div class="summaryLabel">全体収支</div>
+<div class="summaryValue" id="summaryTotalProfit">0</div>
+<div class="summarySub" id="summaryTotalText">投資:0 / 回収:0 / 回収率:0.00%</div>
+</div>
 
-<div class="card">
+<div class="summaryCard">
+<div class="summaryLabel">本日収支</div>
+<div class="summaryValue" id="summaryDayProfit">0</div>
+<div class="summarySub" id="summaryDayText">投資:0 / 回収:0 / 回収率:0.00%</div>
+</div>
+
+<div class="summaryCard">
+<div class="summaryLabel">今月収支</div>
+<div class="summaryValue" id="summaryMonthProfit">0</div>
+<div class="summarySub" id="summaryMonthText">投資:0 / 回収:0 / 回収率:0.00%</div>
+</div>
+
+<div class="summaryCard">
+<div class="summaryLabel">年間収支</div>
+<div class="summaryValue" id="summaryYearProfit">0</div>
+<div class="summarySub" id="summaryYearText">投資:0 / 回収:0 / 回収率:0.00%</div>
+</div>
+</div>
+
+<div class="dashboardGrid">
+<div class="card gridCol8">
+<div class="sectionTitle">
 <h3>📉 日別収支推移</h3>
-<div class="chartWrap">
+</div>
+<div class="chartWrapTall">
 <canvas id="dailyProfitChart"></canvas>
 </div>
 </div>
 
-<div class="card">
+<div class="card gridCol4">
+<div class="sectionTitle">
 <h3>🥧 券種別投資割合</h3>
-<div class="chartWrap">
+</div>
+<div class="chartWrapTall">
 <canvas id="typePieChart"></canvas>
 </div>
 </div>
 
-<div class="card">
+<div class="card gridCol6">
+<div class="sectionTitle">
 <h3>📍 競馬場別収支グラフ</h3>
+</div>
 <div class="chartWrap">
 <canvas id="placeProfitChart"></canvas>
 </div>
 </div>
 
-<div class="card"><h3>📈 券種別回収率</h3><div id="typeStats"></div></div>
-<div class="card"><h3>📋 履歴（レース単位）</h3><div id="history"></div></div>
-<div class="card"><h3>🏟 競馬場別ランキング</h3><div id="placeStats"></div></div>
+<div class="card gridCol6">
+<div class="sectionTitle">
+<h3>📈 券種別回収率</h3>
+</div>
+<div id="typeStats"></div>
+</div>
 
-<div class="card">
+<div class="card gridCol6">
+<div class="sectionTitle">
+<h3>🏟 競馬場別ランキング</h3>
+</div>
+<div id="placeStats"></div>
+</div>
+
+<div class="card gridCol6">
+<div class="sectionTitle">
 <h3>🏇 騎手別ランキング</h3>
-<div style="margin-bottom:8px;">
+</div>
+
+<div class="smallControlRow">
 <span>最低投資フィルタ</span>
 <input id="jockeyMinBetFilter" type="number" value="1000" min="0" placeholder="最低投資額">
 <button onclick="loadData()">適用</button>
 </div>
+
+<div class="infoNote">
+※騎手別ランキング = その騎手を含むすべての買い目の成績  
+（単勝・複勝はその騎手に加算、ワイド・馬連・馬単・3連複・3連単は各騎手に投資・回収を全額加算）
+</div>
+
 <div id="jockeyStats"></div>
+</div>
+
+<div class="card gridCol12">
+<div class="sectionTitle">
+<h3>📋 履歴（レース単位）</h3>
+</div>
+<div id="history"></div>
+</div>
 </div>
 
 <script type="module">
@@ -320,11 +692,19 @@ const filterType = document.getElementById("filterType");
 const filterMonth = document.getElementById("filterMonth");
 const jockeyMinBetFilter = document.getElementById("jockeyMinBetFilter");
 
-const summary = document.getElementById("summary");
 const history = document.getElementById("history");
 const placeStats = document.getElementById("placeStats");
 const jockeyStats = document.getElementById("jockeyStats");
 const typeStats = document.getElementById("typeStats");
+
+const summaryTotalProfit = document.getElementById("summaryTotalProfit");
+const summaryTotalText = document.getElementById("summaryTotalText");
+const summaryDayProfit = document.getElementById("summaryDayProfit");
+const summaryDayText = document.getElementById("summaryDayText");
+const summaryMonthProfit = document.getElementById("summaryMonthProfit");
+const summaryMonthText = document.getElementById("summaryMonthText");
+const summaryYearProfit = document.getElementById("summaryYearProfit");
+const summaryYearText = document.getElementById("summaryYearText");
 
 let dailyProfitChartInstance = null;
 let typePieChartInstance = null;
@@ -380,12 +760,12 @@ localStorage.setItem("keiba_jockey_min_bet_filter", jockeyMinBetFilter.value || 
 
 function updateRaceCategoryFields(){
 if(raceCategory.value === "通常"){
-raceClass.style.display = "inline";
+raceClass.style.display = "block";
 raceName.style.display = "none";
 raceName.value = "";
 }else{
 raceClass.style.display = "none";
-raceName.style.display = "inline";
+raceName.style.display = "block";
 raceClass.value = "";
 }
 }
@@ -458,12 +838,12 @@ jockey2.value = "";
 jockey3.value = "";
 
 if (type.value === "ワイド" || type.value === "馬連" || type.value === "馬単") {
-jockey2.style.display = "inline";
+jockey2.style.display = "block";
 }
 
 if (type.value === "3連複" || type.value === "3連単") {
-jockey2.style.display = "inline";
-jockey3.style.display = "inline";
+jockey2.style.display = "block";
+jockey3.style.display = "block";
 }
 }
 
@@ -502,7 +882,7 @@ logoutBtn.onclick = () => signOut(auth);
 onAuthStateChanged(auth,(u)=>{
 user=u;
 if(u){
-userInfo.innerText="ログイン:"+u.email;
+userInfo.innerText="ログイン: " + u.email;
 loginBtn.style.display="none";
 logoutBtn.style.display="inline";
 loadData();
@@ -510,11 +890,11 @@ loadData();
 userInfo.innerText="未ログイン";
 loginBtn.style.display="inline";
 logoutBtn.style.display="none";
-summary.innerHTML = "";
+typeStats.innerHTML = "";
 history.innerHTML = "";
 placeStats.innerHTML = "";
 jockeyStats.innerHTML = "";
-typeStats.innerHTML = "";
+clearSummaryCards();
 clearCharts();
 }
 });
@@ -656,7 +1036,7 @@ return betTotal ? (payTotal / betTotal) * 100 : 0;
 }
 
 function profitClass(value){
-return value >= 0 ? "good" : "bad";
+return value > 0 ? "good" : value < 0 ? "bad" : "neutral";
 }
 
 function splitJockeyNames(jockeyValue){
@@ -671,6 +1051,19 @@ jockeyValue
 );
 }
 
+function clearSummaryCards(){
+setSummaryCard(summaryTotalProfit, summaryTotalText, 0, 0, 0);
+setSummaryCard(summaryDayProfit, summaryDayText, 0, 0, 0);
+setSummaryCard(summaryMonthProfit, summaryMonthText, 0, 0, 0);
+setSummaryCard(summaryYearProfit, summaryYearText, 0, 0, 0);
+}
+
+function setSummaryCard(valueEl, subEl, profit, betTotal, payTotal){
+valueEl.textContent = profit;
+valueEl.className = "summaryValue " + profitClass(profit);
+subEl.textContent = `投資:${betTotal} / 回収:${payTotal} / 回収率:${calcRate(payTotal, betTotal)}%`;
+}
+
 function renderTypeStats(typeObj){
 const rows = Object.entries(typeObj)
 .sort((a,b)=> (b[1].p - b[1].b) - (a[1].p - a[1].b));
@@ -683,7 +1076,7 @@ return;
 let html = "";
 rows.forEach(([name, obj])=>{
 const profit = obj.p - obj.b;
-html += `<div class="rankRow">${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
+html += `<div class="rankRow"><strong>${name}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
 });
 typeStats.innerHTML = html;
 }
@@ -700,7 +1093,7 @@ return;
 let html = "";
 rows.forEach(([name, obj], index)=>{
 const profit = obj.p - obj.b;
-html += `<div class="rankRow">${index + 1}位 ${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
+html += `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
 });
 placeStats.innerHTML = html;
 }
@@ -723,18 +1116,18 @@ jockeyStats.innerHTML = `データなし（最低投資:${minBet}円）`;
 return;
 }
 
-let html = `<div style="margin-bottom:8px;"><strong>※騎手別ランキング = その騎手を含む買い目の成績（ワイド・馬連・馬単・3連複・3連単は各騎手に投資・回収を全額加算）</strong></div>`;
+let html = "";
 
 html += "<div><strong>回収率ランキング 上位20</strong></div>";
 rateRows.slice(0, 20).forEach(([name, obj], index)=>{
 const profit = obj.p - obj.b;
-html += `<div class="rankRow">${index + 1}位 ${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
+html += `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
 });
 
 html += "<br><div><strong>収支ランキング 上位20</strong></div>";
 profitRows.slice(0, 20).forEach(([name, obj], index)=>{
 const profit = obj.p - obj.b;
-html += `<div class="rankRow">${index + 1}位 ${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
+html += `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
 });
 
 html += "<br><div><strong>プラス騎手 上位10</strong></div>";
@@ -743,7 +1136,7 @@ html += `<div class="rankRow">該当なし</div>`;
 }else{
 plusRows.forEach(([name, obj], index)=>{
 const profit = obj.p - obj.b;
-html += `<div class="rankRow">${index + 1}位 ${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="good">${profit}</span></div>`;
+html += `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="good">${profit}</span></div>`;
 });
 }
 
@@ -753,7 +1146,7 @@ html += `<div class="rankRow">該当なし</div>`;
 }else{
 minusRows.forEach(([name, obj], index)=>{
 const profit = obj.p - obj.b;
-html += `<div class="rankRow">${index + 1}位 ${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="bad">${profit}</span></div>`;
+html += `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="bad">${profit}</span></div>`;
 });
 }
 
@@ -775,7 +1168,7 @@ html += `
 <div class="raceSub">
 ${group.raceNumber ? group.raceNumber : ""} ${group.raceName ? group.raceName : ""}
 ${group.surface ? " / " + group.surface : ""}
-投資合計:${group.totalBet} 回収合計:${group.totalPay}
+<br>投資合計:${group.totalBet}　回収合計:${group.totalPay}　
 収支:<span class="${profitClass(groupProfit)}">${groupProfit}</span>
 </div>
 `;
@@ -783,9 +1176,9 @@ ${group.surface ? " / " + group.surface : ""}
 group.items.forEach(item=>{
 html += `
 <div class="entryRow">
-${item.type} ${item.jockey}
-投資:${item.bet} 回収:${item.pay}
-<button onclick="window.edit('${item.id}','${item.enc}')">修正</button>
+${item.type} ${item.jockey}<br>
+投資:${item.bet}　回収:${item.pay}
+<button onclick="window.edit('${item.id}','${item.enc}')" style="margin-left:8px;">修正</button>
 <button onclick="window.del('${item.id}')">削除</button>
 </div>
 `;
@@ -834,9 +1227,10 @@ labels: labels.length ? labels : ["データなし"],
 datasets: [{
 label: "日別収支",
 data: labels.length ? data : [0],
-borderWidth: 2,
+borderWidth: 3,
 fill: false,
-tension: 0.2
+tension: 0.25,
+pointRadius: 3
 }]
 },
 options: {
@@ -945,8 +1339,8 @@ let yearBet=0, yearPay=0;
 let placeObj={}, jockeyObj={}, typeObj={}, dailyObj={};
 let groupsMap = {};
 
-const today = new Date();
 const currentDay = todayString();
+const today = new Date();
 const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
 const currentYear = `${today.getFullYear()}`;
 
@@ -1034,12 +1428,10 @@ enc: enc
 
 const groups = Object.values(groupsMap).sort((a,b)=> b.createdAt - a.createdAt);
 
-summary.innerHTML=`
-<div>投資:${filteredBet} 回収:${filteredPay} 回収率:${calcRate(filteredPay,filteredBet)}%</div>
-<div style="margin-top:8px;">当日の収支: <span class="${profitClass(dayPay - dayBet)}">${dayPay - dayBet}</span> （投資:${dayBet} / 回収:${dayPay} / 回収率:${calcRate(dayPay,dayBet)}%）</div>
-<div style="margin-top:8px;">当月収支: <span class="${profitClass(monthPay - monthBet)}">${monthPay - monthBet}</span> （投資:${monthBet} / 回収:${monthPay} / 回収率:${calcRate(monthPay,monthBet)}%）</div>
-<div style="margin-top:8px;">今年の収支: <span class="${profitClass(yearPay - yearBet)}">${yearPay - yearBet}</span> （投資:${yearBet} / 回収:${yearPay} / 回収率:${calcRate(yearPay,yearBet)}%）</div>
-`;
+setSummaryCard(summaryTotalProfit, summaryTotalText, filteredPay - filteredBet, filteredBet, filteredPay);
+setSummaryCard(summaryDayProfit, summaryDayText, dayPay - dayBet, dayBet, dayPay);
+setSummaryCard(summaryMonthProfit, summaryMonthText, monthPay - monthBet, monthBet, monthPay);
+setSummaryCard(summaryYearProfit, summaryYearText, yearPay - yearBet, yearBet, yearPay);
 
 renderCharts(dailyObj, typeObj, placeObj);
 renderTypeStats(typeObj);
