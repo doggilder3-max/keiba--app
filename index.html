@@ -9,7 +9,9 @@
 <style>
 body { font-family:sans-serif; background:#f5f5f5; padding:15px; }
 .card { background:#fff; padding:15px; margin:10px 0; border-radius:10px; }
+
 input, select, button { padding:8px; margin:5px; }
+
 .hidden { display:none; }
 </style>
 </head>
@@ -23,6 +25,7 @@ input, select, button { padding:8px; margin:5px; }
 <button id="loginBtn">Googleログイン</button>
 <button id="logoutBtn" style="display:none;">ログアウト</button>
 
+<!-- 入力 -->
 <div class="card">
 <h3>収支入力</h3>
 
@@ -45,11 +48,7 @@ input, select, button { padding:8px; margin:5px; }
 </optgroup>
 </select>
 
-<label>
-<input type="checkbox" id="allJockeyToggle">
-全騎手表示（遠征対応）
-</label>
-
+<!-- 騎手選択 -->
 <div>
 <select id="jockey1"></select>
 <select id="jockey2" class="hidden"></select>
@@ -69,6 +68,7 @@ input, select, button { padding:8px; margin:5px; }
 <button id="saveBtn">保存</button>
 </div>
 
+<!-- 以下既存そのまま -->
 <div class="card"><h3>📊 収支</h3><div id="summary"></div></div>
 <div class="card"><h3>📋 履歴</h3><div id="history"></div></div>
 <div class="card"><h3>🏟 競馬場別</h3><div id="placeStats"></div></div>
@@ -76,63 +76,51 @@ input, select, button { padding:8px; margin:5px; }
 
 <script type="module">
 
-/* ===== DOM取得（追加のみ）===== */
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-const userInfo = document.getElementById("userInfo");
-const saveBtn = document.getElementById("saveBtn");
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+import {
+getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
-const date = document.getElementById("date");
-const bet = document.getElementById("bet");
-const pay = document.getElementById("pay");
-const place = document.getElementById("place");
+import {
+getFirestore, collection, addDoc, getDocs,
+query, orderBy, deleteDoc, doc, updateDoc
+} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-const jockey1 = document.getElementById("jockey1");
-const jockey2 = document.getElementById("jockey2");
-const jockey3 = document.getElementById("jockey3");
+/* ===== 騎手データ ===== */
+const jockeyList = [
+"秋山稔樹","五十嵐雄祐","池添謙一","石川裕紀人","石神深一","石神深道","石田拓郎","石橋脩",
+"泉谷楓真","伊藤工真","井上敏樹","今村聖奈","岩田望来","岩田康誠","岩部純二","上里直汰",
+"上野翔","内田博幸","江田照男","江田勇亮","遠藤汰月","大江原圭","大久保友雅","大野拓弥",
+"岡田祥嗣","荻野極","荻野琢真","小沢大仁","小野寺祐太","加藤祥太","金子光希","亀田温心",
+"川須栄彦","川田将雅","河原田菜々","川端海翼","川又賢治","菊沢一樹","北村宏司","北村友一",
+"城戸義政","草野太郎","クリストフ・ルメール","黒岩悠","国分恭介","国分優作","小坂忠士",
+"小崎綾也","小林脩斗","小林美駒","小林凌大","小牧加矢太","木幡育也","木幡巧也","木幡初也",
+"斎藤新","酒井学","坂井瑠星","坂口智康","佐々木大輔","佐藤翔馬","鮫島克駿","鮫島良太",
+"柴田大知","柴田善臣","柴田裕一郎","嶋田純次","菅原隆一","菅原明良","杉原誠人","高倉稜",
+"高杉吏麒","高田潤","田口貫太","武豊","田辺裕信","谷原柚希","田村太雅","田山旺佑","丹内祐次",
+"太宰啓介","団野大成","土田真翔","角田大和","津村明秀","戸崎圭太","富田暁","中井裕二",
+"中村将之","長岡禎仁","永島まなみ","長浜鴻緒","難波剛健","西谷誠","西塚洸二","西村淳也",
+"西村太一","野中悠太郎","橋木太希","浜中俊","原優介","原田和真","伴啓太","菱田裕二",
+"藤懸貴志","舟山瑠泉","古川奈穂","古川吉洋","松岡正海","松本大輝","松山弘平","松若風馬",
+"的場勇人","黛弘人","丸田恭介","丸山元気","三浦皇成","水沼元輝","蓑島靖典","幸英明",
+"ミルコ・デムーロ","武藤雅","森一馬","森田誠也","横山和生","横山武史","横山典弘","横山琉人",
+"吉田隼人","吉田豊","吉村誠之助","鷲頭虎太","和田陽希"
+];
 
-const type = document.getElementById("type");
-const allJockeyToggle = document.getElementById("allJockeyToggle");
-
-const summary = document.getElementById("summary");
-const history = document.getElementById("history");
-const placeStats = document.getElementById("placeStats");
-const jockeyStats = document.getElementById("jockeyStats");
-
-/* ===== 騎手データ（そのまま）===== */
-const centralJockeys = [/* ←あなたの中央データそのまま */];
-const localJockeys = [/* ←あなたの地方データそのまま */];
-
-const allJockeys = [...new Set([...centralJockeys, ...localJockeys])];
-const centralPlaces = ["東京","札幌","函館","福島","中山","新潟","中京","京都","阪神","小倉"];
-
-/* ===== 騎手生成（エラー防止のみ追加）===== */
-function setJockeyOptions(list){
-if(!jockey1) return;
-
-[jockey1,jockey2,jockey3].forEach(select=>{
-if(!select) return;
-select.innerHTML='<option value="">騎手選択</option>';
-list.forEach(j=> select.innerHTML+=`<option>${j}</option>`);
+/* プルダウン生成 */
+function setJockeyOptions(select){
+select.innerHTML = '<option value="">騎手選択</option>';
+jockeyList.forEach(j=>{
+select.innerHTML += `<option>${j}</option>`;
 });
 }
 
-setJockeyOptions(centralJockeys);
+setJockeyOptions(jockey1);
+setJockeyOptions(jockey2);
+setJockeyOptions(jockey3);
 
-function updateJockey(){
-if(allJockeyToggle.checked){
-setJockeyOptions(allJockeys);
-return;
-}
-let list = centralPlaces.includes(place.value) ? centralJockeys : localJockeys;
-setJockeyOptions(list);
-}
-
-place.onchange = updateJockey;
-allJockeyToggle.onchange = updateJockey;
-
-/* 券種制御 */
-type.onchange=()=>{
+/* 券種で制御 */
+type.onchange = ()=>{
 jockey2.classList.add("hidden");
 jockey3.classList.add("hidden");
 
@@ -145,17 +133,7 @@ jockey3.classList.remove("hidden");
 }
 };
 
-/* ===== Firebase（元コード復元）===== */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import {
-getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-
-import {
-getFirestore, collection, addDoc, getDocs,
-query, orderBy, deleteDoc, doc
-} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-
+/* Firebase */
 const app = initializeApp({
 apiKey:"YOUR_KEY",
 authDomain:"YOUR_DOMAIN",
@@ -165,10 +143,10 @@ projectId:"YOUR_ID"
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let user = null;
+let user=null;
 
-loginBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
-logoutBtn.onclick = () => signOut(auth);
+loginBtn.onclick=()=>signInWithPopup(auth,new GoogleAuthProvider());
+logoutBtn.onclick=()=>signOut(auth);
 
 onAuthStateChanged(auth,(u)=>{
 user=u;
@@ -180,11 +158,9 @@ loadData();
 }
 });
 
-saveBtn.onclick = async () => {
-if(!user){ alert("ログインしてください"); return; }
-
+/* 保存 */
+saveBtn.onclick=async()=>{
 let j=[jockey1.value,jockey2.value,jockey3.value].filter(v=>v);
-
 await addDoc(collection(db,"bets"),{
 uid:user.uid,
 date:date.value,
@@ -195,40 +171,32 @@ place:place.value || "未設定",
 jockey:j.join(" / "),
 createdAt:new Date()
 });
-
 loadData();
 };
 
+/* 以下既存そのまま */
 window.del=async(id)=>{await deleteDoc(doc(db,"bets",id));loadData();};
 
 async function loadData(){
 const snap=await getDocs(query(collection(db,"bets"),orderBy("createdAt","desc")));
-let tb=0,tp=0,placeObj={},jockeyObj={};
+let tb=0,tp=0,place={},jockey={};
 let html="";
-
 snap.forEach(d=>{
 const v=d.data();
 if(v.uid!==user.uid)return;
-
-tb+=v.bet;
-tp+=v.pay;
-
-placeObj[v.place]=(placeObj[v.place]||{b:0,p:0});
-placeObj[v.place].b+=v.bet;
-placeObj[v.place].p+=v.pay;
-
-jockeyObj[v.jockey]=(jockeyObj[v.jockey]||{b:0,p:0});
-jockeyObj[v.jockey].b+=v.bet;
-jockeyObj[v.jockey].p+=v.pay;
-
+tb+=v.bet; tp+=v.pay;
+place[v.place]=(place[v.place]||{b:0,p:0});
+place[v.place].b+=v.bet; place[v.place].p+=v.pay;
+jockey[v.jockey]=(jockey[v.jockey]||{b:0,p:0});
+jockey[v.jockey].b+=v.bet; jockey[v.jockey].p+=v.pay;
 html+=`<div>${v.date} ${v.type} ${v.place} ${v.jockey}
 投資:${v.bet} 回収:${v.pay}
 <button onclick="del('${d.id}')">削除</button></div>`;
 });
-
 summary.innerHTML=`投資:${tb} 回収:${tp} 回収率:${tb?((tp/tb)*100).toFixed(2):0}%`;
-placeStats.innerHTML=Object.keys(placeObj).map(k=>`${k}:${placeObj[k].p-placeObj[k].b}`).join("<br>");
-jockeyStats.innerHTML=Object.keys(jockeyObj).map(k=>`${k}:${jockeyObj[k].p-jockeyObj[k].b}`).join("<br>");
+
+placeStats.innerHTML=Object.keys(place).map(k=>`${k}:${place[k].p-place[k].b}`).join("<br>");
+jockeyStats.innerHTML=Object.keys(jockey).map(k=>`${k}:${jockey[k].p-jockey[k].b}`).join("<br>");
 history.innerHTML=html;
 }
 
