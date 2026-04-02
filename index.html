@@ -357,6 +357,21 @@ color:#6b5400;
 border:1px solid #f1e3a0;
 }
 
+.exportBtn {
+background:#0b7285;
+}
+
+.exportBtnPremium {
+background:#0b7285;
+}
+
+.exportNote {
+font-size:13px;
+color:#666;
+line-height:1.6;
+margin-top:8px;
+}
+
 @media (max-width: 960px) {
 .gridCol8, .gridCol6, .gridCol4 { grid-column:span 12; }
 .chartWrap, .chartWrapTall { height:280px; }
@@ -397,17 +412,17 @@ border:1px solid #f1e3a0;
 </div>
 
 <div class="planCard">
-<div class="planName">テスト切り替え</div>
+<div class="planName">プラン切り替え</div>
 <div class="planDesc">
-実決済はまだ未実装です。<br>
-今は無料 / 有料の表示差分をテストできるようにしています。<br>
-有料にすると、騎手別ランキングのフル表示・最低投資フィルタが解放されます。
+無料 / 有料プランの表示差分を確認できます。<br>
+プレミアム登録ボタンから決済ページへ進めます。<br>
+有料プランでは、騎手別ランキングのフル表示・最低投資フィルタ・CSV出力が利用できます。
 </div>
 <div class="planButtonRow">
 <button class="planBtnFree" onclick="window.setPlanOverride('free')">無料表示で確認</button>
 <button class="planBtnPremium" onclick="window.setPlanOverride('premium')">有料表示で確認</button>
 <button onclick="window.clearPlanOverride()">サーバープランに戻す</button>
-<button class="planBtnPremium" onclick="window.goPremiumStripe()">プレミアム登録（月500円）</button>
+<button class="planBtnPremium" onclick="window.goPremiumStripe()">プレミアム登録（500円）</button>
 </div>
 </div>
 </div>
@@ -596,7 +611,9 @@ border:1px solid #f1e3a0;
 
 <input id="filterMonth" type="month">
 <button onclick="loadData()">適用</button>
+<button id="exportCsvBtn" class="exportBtnPremium" onclick="window.exportFilteredCsv()">CSV出力</button>
 </div>
+<div id="exportCsvNote" class="exportNote"></div>
 </div>
 
 <div class="summaryGrid">
@@ -802,6 +819,8 @@ const filterType = document.getElementById("filterType");
 const filterMonth = document.getElementById("filterMonth");
 const jockeyMinBetFilter = document.getElementById("jockeyMinBetFilter");
 const jockeyFilterApplyBtn = document.getElementById("jockeyFilterApplyBtn");
+const exportCsvBtn = document.getElementById("exportCsvBtn");
+const exportCsvNote = document.getElementById("exportCsvNote");
 
 const history = document.getElementById("history");
 const placeStats = document.getElementById("placeStats");
@@ -829,6 +848,7 @@ let placeProfitChartInstance = null;
 let user = null;
 let currentPlan = "free";
 let serverPlan = "free";
+let latestFilteredRows = [];
 
 window.goPremiumStripe = () => {
 window.location.href = "https://buy.stripe.com/7sYaEP34s60Hehc0qsbQY00";
@@ -871,6 +891,63 @@ updatePlanUI();
 loadData();
 };
 
+window.exportFilteredCsv = () => {
+if(currentPlan !== "premium"){
+alert("CSV出力は有料プラン限定です");
+return;
+}
+
+if(!latestFilteredRows.length){
+alert("出力するデータがありません");
+return;
+}
+
+const headers = [
+"日付","投資","回収","収支","券種","競馬場","レース区分","レース名","R番号","馬場","騎手"
+];
+
+const csvRows = [
+headers.join(","),
+...latestFilteredRows.map(v => {
+const profit = Number(v.pay || 0) - Number(v.bet || 0);
+const values = [
+v.date || "",
+v.bet ?? 0,
+v.pay ?? 0,
+profit,
+v.type || "",
+v.place || "",
+v.raceCategory || "",
+v.raceName || "",
+v.raceNumber || "",
+v.surface || "",
+v.jockey || ""
+];
+return values.map(csvEscape).join(",");
+})
+];
+
+const bom = "\uFEFF";
+const blob = new Blob([bom + csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+const monthText = filterMonth.value ? filterMonth.value : "all";
+a.href = url;
+a.download = `keiba_dashboard_${monthText}.csv`;
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(url);
+};
+
+function csvEscape(value){
+const str = String(value ?? "");
+if(str.includes(",") || str.includes("\"") || str.includes("\n")){
+return `"${str.replace(/"/g, "\"\"")}"`;
+}
+return str;
+}
+
 function restoreLastSelections(){
 const lastPlace = localStorage.getItem("keiba_last_place");
 const lastType = localStorage.getItem("keiba_last_type");
@@ -911,22 +988,26 @@ currentPlanBadge.className = `planBadge ${isPremium ? "premium" : "free"}`;
 currentPlanBadge.textContent = isPremium ? "有料プラン" : "無料プラン";
 
 planDescription.innerHTML = isPremium
-? "有料プランでは、騎手別ランキングのフル表示・最低投資フィルタ・詳細な騎手分析表示を利用できます。"
-: "無料プランでは、基本の収支管理・グラフ・ランキングを利用できます。騎手別ランキングは一部のみ表示されます。";
+? "有料プランでは、騎手別ランキングのフル表示・最低投資フィルタ・CSV出力を利用できます。"
+: "無料プランでは、基本の収支管理・グラフ・ランキングを利用できます。騎手別ランキングは一部のみ表示され、CSV出力は利用できません。";
 
 if(isPremium){
 planLockNote.style.display = "none";
 }else{
 planLockNote.style.display = "block";
-planLockNote.innerHTML = "無料プランでは、騎手別ランキングは上位のみ表示されます。有料プランでフル表示と最低投資フィルタが解放されます。";
+planLockNote.innerHTML = "無料プランでは、騎手別ランキングは上位のみ表示されます。有料プランでフル表示・最低投資フィルタ・CSV出力が解放されます。";
 }
 
 jockeyMinBetFilter.disabled = !isPremium;
 jockeyFilterApplyBtn.disabled = !isPremium;
+exportCsvBtn.disabled = !isPremium;
+exportCsvNote.textContent = isPremium
+? "現在のフィルター条件でCSV出力できます。"
+: "CSV出力は有料プラン限定です。";
 
 jockeyInfoNote.innerHTML = isPremium
 ? "※騎手別ランキング = その騎手を含むすべての買い目の成績<br>（単勝・複勝はその騎手に加算、ワイド・馬連・馬単・3連複・3連単は各騎手に投資・回収を全額加算）"
-: "※無料プランでは騎手別ランキングは上位のみ表示されます。<br>有料プランでフル表示・最低投資フィルタが解放されます。";
+: "※無料プランでは騎手別ランキングは上位のみ表示されます。<br>有料プランでフル表示・最低投資フィルタ・CSV出力が解放されます。";
 }
 
 function updateRaceCategoryFields(){
@@ -1096,6 +1177,7 @@ typeStats.innerHTML = "";
 history.innerHTML = "";
 placeStats.innerHTML = "";
 jockeyStats.innerHTML = "";
+latestFilteredRows = [];
 clearSummaryCards();
 clearCharts();
 }
@@ -1357,7 +1439,7 @@ html += `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資
 });
 }
 }else{
-html += `<div class="lockNote">有料プランで、プラス騎手 / マイナス騎手の詳細分析と最低投資フィルタが解放されます。</div>`;
+html += `<div class="lockNote">有料プランで、プラス騎手 / マイナス騎手の詳細分析、最低投資フィルタ、CSV出力が解放されます。</div>`;
 }
 
 jockeyStats.innerHTML = html;
@@ -1548,6 +1630,7 @@ let yearBet=0, yearPay=0;
 
 let placeObj={}, jockeyObj={}, typeObj={}, dailyObj={};
 let groupsMap = {};
+latestFilteredRows = [];
 
 const currentDay = todayString();
 const today = new Date();
@@ -1578,6 +1661,8 @@ yearPay += payVal;
 
 if(filterType.value !== "all" && v.type !== filterType.value) return;
 if(filterMonth.value && (!v.date || !v.date.startsWith(filterMonth.value))) return;
+
+latestFilteredRows.push(v);
 
 filteredBet += betVal;
 filteredPay += payVal;
