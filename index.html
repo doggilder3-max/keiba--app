@@ -49,6 +49,12 @@ input, select, button { padding:8px; margin:5px; cursor:pointer; }
   <input id="bet" type="number" placeholder="投資額">
   <input id="pay" type="number" placeholder="回収額">
 
+  <!-- ★追加：競馬場 -->
+  <input id="place" type="text" placeholder="競馬場（東京・中山など）">
+
+  <!-- ★追加：騎手 -->
+  <input id="jockey" type="text" placeholder="騎手（川田・ルメールなど）">
+
   <select id="type">
     <option>単勝</option>
     <option>複勝</option>
@@ -62,7 +68,7 @@ input, select, button { padding:8px; margin:5px; cursor:pointer; }
   <button id="saveBtn">保存</button>
 </div>
 
-<!-- フィルター（追加） -->
+<!-- フィルター -->
 <div class="card">
   <h3>🔍 フィルター</h3>
 
@@ -78,6 +84,7 @@ input, select, button { padding:8px; margin:5px; cursor:pointer; }
   </select>
 
   <input id="filterMonth" type="month">
+
   <button onclick="loadData()">適用</button>
 </div>
 
@@ -103,6 +110,18 @@ input, select, button { padding:8px; margin:5px; cursor:pointer; }
 <div class="card">
   <h3>🗓 月別集計</h3>
   <div id="monthly"></div>
+</div>
+
+<!-- ★追加：競馬場別 -->
+<div class="card">
+  <h3>🏟 競馬場別収支</h3>
+  <div id="placeStats"></div>
+</div>
+
+<!-- ★追加：騎手別 -->
+<div class="card">
+  <h3>🏇 騎手別収支</h3>
+  <div id="jockeyStats"></div>
 </div>
 
 <script type="module">
@@ -163,6 +182,11 @@ saveBtn.onclick = async () => {
     bet: Number(bet.value),
     pay: Number(pay.value),
     type: type.value,
+
+    // ★追加
+    place: place.value,
+    jockey: jockey.value,
+
     createdAt: new Date()
   });
 
@@ -178,14 +202,12 @@ window.del = async (id) => {
 };
 
 // =====================
-// 編集（追加）
+// 編集
 // =====================
 window.edit = async (id, v) => {
 
   const newBet = prompt("投資額", v.bet);
   const newPay = prompt("回収額", v.pay);
-
-  if (!newBet || !newPay) return;
 
   await updateDoc(doc(db,"bets",id), {
     bet: Number(newBet),
@@ -202,19 +224,14 @@ async function loadData() {
 
   if (!currentUser) return;
 
-  const filterType = document.getElementById("filterType").value;
-  const filterMonth = document.getElementById("filterMonth").value;
-
   const q = query(collection(db,"bets"), orderBy("createdAt","desc"));
   const snap = await getDocs(q);
 
   let totalBet = 0;
   let totalPay = 0;
 
-  let labels = [];
-  let data = [];
-
-  let monthly = {};
+  let placeStats = {};
+  let jockeyStats = {};
 
   let html = "";
 
@@ -224,29 +241,23 @@ async function loadData() {
 
     if (v.uid !== currentUser.uid) return;
 
-    // フィルター（券種）
-    if (filterType !== "all" && v.type !== filterType) return;
-
-    // フィルター（月）
-    if (filterMonth && !v.date.startsWith(filterMonth)) return;
-
     totalBet += v.bet;
     totalPay += v.pay;
 
-    labels.push(v.date);
-    data.push(v.pay - v.bet);
+    // ★競馬場集計
+    if (!placeStats[v.place]) placeStats[v.place] = {bet:0,pay:0};
+    placeStats[v.place].bet += v.bet;
+    placeStats[v.place].pay += v.pay;
 
-    // 月別集計
-    const month = v.date?.slice(0,7);
-    if (month) {
-      if (!monthly[month]) monthly[month] = {bet:0,pay:0};
-      monthly[month].bet += v.bet;
-      monthly[month].pay += v.pay;
-    }
+    // ★騎手集計
+    if (!jockeyStats[v.jockey]) jockeyStats[v.jockey] = {bet:0,pay:0};
+    jockeyStats[v.jockey].bet += v.bet;
+    jockeyStats[v.jockey].pay += v.pay;
 
     html += `
       <div>
-        ${v.date} | ${v.type} | 投資:${v.bet} 回収:${v.pay}
+        ${v.date} | ${v.type} | ${v.place || "-"} | ${v.jockey || "-"}
+        投資:${v.bet} 回収:${v.pay}
         <button class="editBtn" onclick='edit("${d.id}",${JSON.stringify(v)})'>修正</button>
         <button class="deleteBtn" onclick="del('${d.id}')">削除</button>
       </div>
@@ -263,27 +274,21 @@ async function loadData() {
 
   history.innerHTML = html;
 
-  // グラフ
-  if (chartInstance) chartInstance.destroy();
-
-  chartInstance = new Chart(chart, {
-    type:"bar",
-    data:{
-      labels: labels.reverse(),
-      datasets:[{
-        label:"収支",
-        data: data.reverse()
-      }]
-    }
-  });
-
-  // 月別表示
-  let mhtml = "";
-  for (let m in monthly) {
-    const r = monthly[m].pay - monthly[m].bet;
-    mhtml += `<div>${m}：${r}円</div>`;
+  // ★競馬場表示
+  let phtml = "";
+  for (let k in placeStats) {
+    const r = placeStats[k].pay - placeStats[k].bet;
+    phtml += `<div>${k || "未設定"}：${r}円</div>`;
   }
-  monthlyDiv.innerHTML = mhtml;
+  placeStatsDiv.innerHTML = phtml;
+
+  // ★騎手表示
+  let jhtml = "";
+  for (let k in jockeyStats) {
+    const r = jockeyStats[k].pay - jockeyStats[k].bet;
+    jhtml += `<div>${k || "未設定"}：${r}円</div>`;
+  }
+  jockeyStatsDiv.innerHTML = jhtml;
 }
 
 </script>
