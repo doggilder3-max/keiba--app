@@ -25,6 +25,8 @@ input, select, button { padding:8px; margin:5px; }
 .entryRow { padding:6px 0; border-top:1px solid #eee; }
 .entryRow:first-of-type { border-top:none; }
 .rankRow { margin:4px 0; }
+
+.chartWrap { position:relative; width:100%; height:320px; }
 </style>
 </head>
 
@@ -174,6 +176,28 @@ input, select, button { padding:8px; margin:5px; }
 </div>
 
 <div class="card"><h3>📊 収支</h3><div id="summary"></div></div>
+
+<div class="card">
+<h3>📉 日別収支推移</h3>
+<div class="chartWrap">
+<canvas id="dailyProfitChart"></canvas>
+</div>
+</div>
+
+<div class="card">
+<h3>🥧 券種別投資割合</h3>
+<div class="chartWrap">
+<canvas id="typePieChart"></canvas>
+</div>
+</div>
+
+<div class="card">
+<h3>📍 競馬場別収支グラフ</h3>
+<div class="chartWrap">
+<canvas id="placeProfitChart"></canvas>
+</div>
+</div>
+
 <div class="card"><h3>📈 券種別回収率</h3><div id="typeStats"></div></div>
 <div class="card"><h3>📋 履歴（レース単位）</h3><div id="history"></div></div>
 <div class="card"><h3>🏟 競馬場別ランキング</h3><div id="placeStats"></div></div>
@@ -301,6 +325,10 @@ const history = document.getElementById("history");
 const placeStats = document.getElementById("placeStats");
 const jockeyStats = document.getElementById("jockeyStats");
 const typeStats = document.getElementById("typeStats");
+
+let dailyProfitChartInstance = null;
+let typePieChartInstance = null;
+let placeProfitChartInstance = null;
 
 function todayString(){
 const now = new Date();
@@ -487,6 +515,7 @@ history.innerHTML = "";
 placeStats.innerHTML = "";
 jockeyStats.innerHTML = "";
 typeStats.innerHTML = "";
+clearCharts();
 }
 });
 
@@ -768,6 +797,138 @@ html += `</div>`;
 history.innerHTML = html;
 }
 
+function clearCharts(){
+if(dailyProfitChartInstance){
+dailyProfitChartInstance.destroy();
+dailyProfitChartInstance = null;
+}
+if(typePieChartInstance){
+typePieChartInstance.destroy();
+typePieChartInstance = null;
+}
+if(placeProfitChartInstance){
+placeProfitChartInstance.destroy();
+placeProfitChartInstance = null;
+}
+}
+
+function renderCharts(dailyObj, typeObj, placeObj){
+renderDailyProfitChart(dailyObj);
+renderTypePieChart(typeObj);
+renderPlaceProfitChart(placeObj);
+}
+
+function renderDailyProfitChart(dailyObj){
+const canvas = document.getElementById("dailyProfitChart");
+if(dailyProfitChartInstance){
+dailyProfitChartInstance.destroy();
+}
+
+const labels = Object.keys(dailyObj).sort();
+const data = labels.map(date => dailyObj[date].p - dailyObj[date].b);
+
+dailyProfitChartInstance = new Chart(canvas, {
+type: "line",
+data: {
+labels: labels.length ? labels : ["データなし"],
+datasets: [{
+label: "日別収支",
+data: labels.length ? data : [0],
+borderWidth: 2,
+fill: false,
+tension: 0.2
+}]
+},
+options: {
+responsive: true,
+maintainAspectRatio: false,
+plugins: {
+legend: { display: true }
+},
+scales: {
+y: {
+beginAtZero: false
+}
+}
+}
+});
+}
+
+function renderTypePieChart(typeObj){
+const canvas = document.getElementById("typePieChart");
+if(typePieChartInstance){
+typePieChartInstance.destroy();
+}
+
+const rows = Object.entries(typeObj).filter(([,obj])=> obj.b > 0);
+const labels = rows.map(([name])=> name);
+const data = rows.map(([,obj])=> obj.b);
+
+typePieChartInstance = new Chart(canvas, {
+type: "pie",
+data: {
+labels: labels.length ? labels : ["データなし"],
+datasets: [{
+label: "券種別投資割合",
+data: labels.length ? data : [1],
+borderWidth: 1
+}]
+},
+options: {
+responsive: true,
+maintainAspectRatio: false,
+plugins: {
+legend: {
+position: "bottom"
+}
+}
+}
+});
+}
+
+function renderPlaceProfitChart(placeObj){
+const canvas = document.getElementById("placeProfitChart");
+if(placeProfitChartInstance){
+placeProfitChartInstance.destroy();
+}
+
+const rows = Object.entries(placeObj)
+.map(([name, obj])=>({
+name,
+profit: obj.p - obj.b
+}))
+.sort((a,b)=> b.profit - a.profit)
+.slice(0, 10);
+
+const labels = rows.map(row => row.name);
+const data = rows.map(row => row.profit);
+
+placeProfitChartInstance = new Chart(canvas, {
+type: "bar",
+data: {
+labels: labels.length ? labels : ["データなし"],
+datasets: [{
+label: "競馬場別収支",
+data: labels.length ? data : [0],
+borderWidth: 1
+}]
+},
+options: {
+responsive: true,
+maintainAspectRatio: false,
+indexAxis: "y",
+plugins: {
+legend: { display: true }
+},
+scales: {
+x: {
+beginAtZero: true
+}
+}
+}
+});
+}
+
 async function loadData(){
 
 if(!user) return;
@@ -781,7 +942,7 @@ let dayBet=0, dayPay=0;
 let monthBet=0, monthPay=0;
 let yearBet=0, yearPay=0;
 
-let placeObj={}, jockeyObj={}, typeObj={};
+let placeObj={}, jockeyObj={}, typeObj={}, dailyObj={};
 let groupsMap = {};
 
 const today = new Date();
@@ -820,6 +981,12 @@ filteredPay += payVal;
 placeObj[v.place]=(placeObj[v.place]||{b:0,p:0});
 placeObj[v.place].b+=betVal;
 placeObj[v.place].p+=payVal;
+
+if(v.date){
+dailyObj[v.date]=(dailyObj[v.date]||{b:0,p:0});
+dailyObj[v.date].b+=betVal;
+dailyObj[v.date].p+=payVal;
+}
 
 const jockeyNames = splitJockeyNames(v.jockey);
 jockeyNames.forEach(name=>{
@@ -874,6 +1041,7 @@ summary.innerHTML=`
 <div style="margin-top:8px;">今年の収支: <span class="${profitClass(yearPay - yearBet)}">${yearPay - yearBet}</span> （投資:${yearBet} / 回収:${yearPay} / 回収率:${calcRate(yearPay,yearBet)}%）</div>
 `;
 
+renderCharts(dailyObj, typeObj, placeObj);
 renderTypeStats(typeObj);
 renderPlaceStats(placeObj);
 renderJockeyStats(jockeyObj);
