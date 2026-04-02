@@ -37,7 +37,6 @@ input, select, button { padding:8px; margin:5px; }
 <input id="bet" type="number" placeholder="投資">
 <input id="pay" type="number" placeholder="回収">
 
-<!-- 競馬場（プルダウン） -->
 <select id="place">
 <option value="">競馬場選択</option>
 <option>東京</option>
@@ -52,7 +51,6 @@ input, select, button { padding:8px; margin:5px; }
 <option>小倉</option>
 </select>
 
-<!-- 騎手 -->
 <input id="jockey" placeholder="騎手">
 
 <select id="type">
@@ -68,7 +66,6 @@ input, select, button { padding:8px; margin:5px; }
 <button id="saveBtn">保存</button>
 </div>
 
-<!-- フィルター -->
 <div class="card">
 <h3>フィルター</h3>
 <select id="filterType">
@@ -86,32 +83,32 @@ input, select, button { padding:8px; margin:5px; }
 <button onclick="loadData()">適用</button>
 </div>
 
-<!-- 集計 -->
-<div class="card">
-<h3>📊 収支</h3>
-<div id="summary"></div>
-</div>
-
-<!-- 履歴 -->
-<div class="card">
-<h3>📋 履歴</h3>
-<div id="history"></div>
-</div>
-
-<!-- 競馬場別 -->
-<div class="card">
-<h3>🏟 競馬場別</h3>
-<div id="placeStats"></div>
-</div>
-
-<!-- 騎手別 -->
-<div class="card">
-<h3>🏇 騎手別</h3>
-<div id="jockeyStats"></div>
-</div>
+<div class="card"><h3>📊 収支</h3><div id="summary"></div></div>
+<div class="card"><h3>📋 履歴</h3><div id="history"></div></div>
+<div class="card"><h3>🏟 競馬場別</h3><div id="placeStats"></div></div>
+<div class="card"><h3>🏇 騎手別</h3><div id="jockeyStats"></div></div>
 
 <script type="module">
 
+/* 🔥 ここ追加（最重要） */
+const loginBtn = document.getElementById("loginBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const userInfo = document.getElementById("userInfo");
+const saveBtn = document.getElementById("saveBtn");
+
+const date = document.getElementById("date");
+const bet = document.getElementById("bet");
+const pay = document.getElementById("pay");
+const place = document.getElementById("place");
+const jockey = document.getElementById("jockey");
+const type = document.getElementById("type");
+
+const summary = document.getElementById("summary");
+const history = document.getElementById("history");
+const placeStats = document.getElementById("placeStats");
+const jockeyStats = document.getElementById("jockeyStats");
+
+/* Firebase */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import {
 getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
@@ -133,6 +130,7 @@ const db = getFirestore(app);
 
 let user = null;
 
+/* ログイン */
 loginBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
 logoutBtn.onclick = () => signOut(auth);
 
@@ -143,10 +141,18 @@ userInfo.innerText="ログイン:"+u.email;
 loginBtn.style.display="none";
 logoutBtn.style.display="inline";
 loadData();
+} else {
+userInfo.innerText="未ログイン";
 }
 });
 
+/* 保存 */
 saveBtn.onclick = async () => {
+if(!user){
+alert("ログインしてください");
+return;
+}
+
 await addDoc(collection(db,"bets"),{
 uid:user.uid,
 date:date.value,
@@ -160,11 +166,13 @@ createdAt:new Date()
 loadData();
 };
 
+/* 削除 */
 window.del = async (id)=>{
 await deleteDoc(doc(db,"bets",id));
 loadData();
 };
 
+/* 編集 */
 window.edit = async (id,v)=>{
 const b=prompt("投資",v.bet);
 const p=prompt("回収",v.pay);
@@ -172,12 +180,13 @@ await updateDoc(doc(db,"bets",id),{bet:+b,pay:+p});
 loadData();
 };
 
+/* 読み込み */
 async function loadData(){
 
 const snap = await getDocs(query(collection(db,"bets"),orderBy("createdAt","desc")));
 
 let tb=0,tp=0;
-let place={}, jockey={};
+let placeObj={}, jockeyObj={};
 
 let html="";
 
@@ -188,13 +197,13 @@ if(v.uid!==user.uid)return;
 tb+=v.bet;
 tp+=v.pay;
 
-place[v.place]=(place[v.place]||{b:0,p:0});
-place[v.place].b+=v.bet;
-place[v.place].p+=v.pay;
+placeObj[v.place]=(placeObj[v.place]||{b:0,p:0});
+placeObj[v.place].b+=v.bet;
+placeObj[v.place].p+=v.pay;
 
-jockey[v.jockey]=(jockey[v.jockey]||{b:0,p:0});
-jockey[v.jockey].b+=v.bet;
-jockey[v.jockey].p+=v.pay;
+jockeyObj[v.jockey]=(jockeyObj[v.jockey]||{b:0,p:0});
+jockeyObj[v.jockey].b+=v.bet;
+jockeyObj[v.jockey].p+=v.pay;
 
 html+=`
 <div>
@@ -210,17 +219,8 @@ summary.innerHTML=`
 回収率:${tb?((tp/tb)*100).toFixed(2):0}%
 `;
 
-let phtml="";
-for(let k in place){
-phtml+=`${k}:${place[k].p-place[k].b}<br>`;
-}
-placeStats.innerHTML=phtml;
-
-let jhtml="";
-for(let k in jockey){
-jhtml+=`${k}:${jockey[k].p-jockey[k].b}<br>`;
-}
-jockeyStats.innerHTML=jhtml;
+placeStats.innerHTML = Object.keys(placeObj).map(k=>`${k}:${placeObj[k].p-placeObj[k].b}`).join("<br>");
+jockeyStats.innerHTML = Object.keys(jockeyObj).map(k=>`${k}:${jockeyObj[k].p-jockeyObj[k].b}`).join("<br>");
 
 history.innerHTML=html;
 }
