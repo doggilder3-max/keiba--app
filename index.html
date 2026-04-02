@@ -29,7 +29,6 @@ input, select, button { padding:8px; margin:5px; }
 <button id="loginBtn">Googleログイン</button>
 <button id="logoutBtn" style="display:none;">ログアウト</button>
 
-<!-- 入力 -->
 <div class="card">
 <h3>収支入力</h3>
 
@@ -90,7 +89,7 @@ input, select, button { padding:8px; margin:5px; }
 
 <script type="module">
 
-/* 🔥 ここ追加（最重要） */
+/* ===== DOM取得（必須）===== */
 const loginBtn = document.getElementById("loginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 const userInfo = document.getElementById("userInfo");
@@ -108,7 +107,7 @@ const history = document.getElementById("history");
 const placeStats = document.getElementById("placeStats");
 const jockeyStats = document.getElementById("jockeyStats");
 
-/* Firebase */
+/* ===== Firebase ===== */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import {
 getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
@@ -119,10 +118,11 @@ getFirestore, collection, addDoc, getDocs,
 query, orderBy, deleteDoc, doc, updateDoc
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
+/* 🔥 ここをあなたの実データに置き換える */
 const app = initializeApp({
-apiKey:"YOUR_KEY",
-authDomain:"YOUR_DOMAIN",
-projectId:"YOUR_ID"
+apiKey: "あなたのAPIキー",
+authDomain: "keiba-dashboard-1f6c4.firebaseapp.com",
+projectId: "keiba-dashboard-1f6c4"
 });
 
 const auth = getAuth(app);
@@ -134,6 +134,7 @@ let user = null;
 loginBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
 logoutBtn.onclick = () => signOut(auth);
 
+/* 状態監視 */
 onAuthStateChanged(auth,(u)=>{
 user=u;
 if(u){
@@ -163,6 +164,7 @@ place:place.value || "未設定",
 jockey:jockey.value || "未設定",
 createdAt:new Date()
 });
+
 loadData();
 };
 
