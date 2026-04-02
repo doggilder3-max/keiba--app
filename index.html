@@ -177,7 +177,16 @@ input, select, button { padding:8px; margin:5px; }
 <div class="card"><h3>📈 券種別回収率</h3><div id="typeStats"></div></div>
 <div class="card"><h3>📋 履歴（レース単位）</h3><div id="history"></div></div>
 <div class="card"><h3>🏟 競馬場別ランキング</h3><div id="placeStats"></div></div>
-<div class="card"><h3>🏇 騎手別ランキング</h3><div id="jockeyStats"></div></div>
+
+<div class="card">
+<h3>🏇 騎手別ランキング</h3>
+<div style="margin-bottom:8px;">
+<span>最低投資フィルタ</span>
+<input id="jockeyMinBetFilter" type="number" value="1000" min="0" placeholder="最低投資額">
+<button onclick="loadData()">適用</button>
+</div>
+<div id="jockeyStats"></div>
+</div>
 
 <script type="module">
 
@@ -285,6 +294,7 @@ const type = document.getElementById("type");
 
 const filterType = document.getElementById("filterType");
 const filterMonth = document.getElementById("filterMonth");
+const jockeyMinBetFilter = document.getElementById("jockeyMinBetFilter");
 
 const summary = document.getElementById("summary");
 const history = document.getElementById("history");
@@ -318,6 +328,7 @@ bet.value = "";
 function restoreLastSelections(){
 const lastPlace = localStorage.getItem("keiba_last_place");
 const lastType = localStorage.getItem("keiba_last_type");
+const lastJockeyMinBetFilter = localStorage.getItem("keiba_jockey_min_bet_filter");
 
 if(lastPlace){
 place.value = lastPlace;
@@ -325,11 +336,18 @@ place.value = lastPlace;
 if(lastType){
 type.value = lastType;
 }
+if(lastJockeyMinBetFilter !== null){
+jockeyMinBetFilter.value = lastJockeyMinBetFilter;
+}
 }
 
 function saveLastSelections(){
 localStorage.setItem("keiba_last_place", place.value || "");
 localStorage.setItem("keiba_last_type", type.value || "");
+}
+
+function saveJockeyMinBetFilter(){
+localStorage.setItem("keiba_jockey_min_bet_filter", jockeyMinBetFilter.value || "0");
 }
 
 function updateRaceCategoryFields(){
@@ -357,6 +375,10 @@ updateJockeyOptions();
 
 raceCategory.onchange = () => {
 updateRaceCategoryFields();
+};
+
+jockeyMinBetFilter.onchange = () => {
+saveJockeyMinBetFilter();
 };
 
 function setJockeyOptions(selectEl, jockeyList, selectedValue){
@@ -600,8 +622,24 @@ function calcRate(payTotal, betTotal){
 return betTotal ? ((payTotal / betTotal) * 100).toFixed(2) : "0.00";
 }
 
+function calcRateNumber(payTotal, betTotal){
+return betTotal ? (payTotal / betTotal) * 100 : 0;
+}
+
 function profitClass(value){
 return value >= 0 ? "good" : "bad";
+}
+
+function splitJockeyNames(jockeyValue){
+if(!jockeyValue || jockeyValue === "未設定"){
+return [];
+}
+return uniqueArray(
+jockeyValue
+.split("/")
+.map(name => name.trim())
+.filter(name => name !== "")
+);
 }
 
 function renderTypeStats(typeObj){
@@ -639,21 +677,35 @@ placeStats.innerHTML = html;
 }
 
 function renderJockeyStats(jockeyObj){
-const rows = Object.entries(jockeyObj)
-.sort((a,b)=> (b[1].p - b[1].b) - (a[1].p - a[1].b));
+const minBet = Number(jockeyMinBetFilter.value || 0);
 
-if(rows.length === 0){
-jockeyStats.innerHTML = "データなし";
+const filteredRows = Object.entries(jockeyObj).filter(([,obj])=> obj.b >= minBet);
+const rateRows = [...filteredRows].sort((a,b)=>{
+const rateDiff = calcRateNumber(b[1].p, b[1].b) - calcRateNumber(a[1].p, a[1].b);
+if(rateDiff !== 0) return rateDiff;
+return (b[1].p - b[1].b) - (a[1].p - a[1].b);
+});
+const profitRows = [...filteredRows].sort((a,b)=> (b[1].p - b[1].b) - (a[1].p - a[1].b));
+const plusRows = profitRows.filter(([,obj])=> (obj.p - obj.b) >= 0).slice(0, 10);
+const minusRows = [...filteredRows].sort((a,b)=> (a[1].p - a[1].b) - (b[1].p - b[1].b)).slice(0, 10);
+
+if(filteredRows.length === 0){
+jockeyStats.innerHTML = `データなし（最低投資:${minBet}円）`;
 return;
 }
 
-const plusRows = rows.filter(([,obj])=> (obj.p - obj.b) >= 0).slice(0, 10);
-const minusRows = [...rows].sort((a,b)=> (a[1].p - a[1].b) - (b[1].p - b[1].b)).slice(0, 10);
+let html = `<div style="margin-bottom:8px;"><strong>※騎手別ランキング = その騎手を含む買い目の成績（ワイド・馬連・馬単・3連複・3連単は各騎手に投資・回収を全額加算）</strong></div>`;
 
-let html = "<div><strong>総合ランキング</strong></div>";
-rows.slice(0, 20).forEach(([name, obj], index)=>{
+html += "<div><strong>回収率ランキング 上位20</strong></div>";
+rateRows.slice(0, 20).forEach(([name, obj], index)=>{
 const profit = obj.p - obj.b;
-html += `<div class="rankRow">${index + 1}位 ${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
+html += `<div class="rankRow">${index + 1}位 ${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
+});
+
+html += "<br><div><strong>収支ランキング 上位20</strong></div>";
+profitRows.slice(0, 20).forEach(([name, obj], index)=>{
+const profit = obj.p - obj.b;
+html += `<div class="rankRow">${index + 1}位 ${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
 });
 
 html += "<br><div><strong>プラス騎手 上位10</strong></div>";
@@ -662,7 +714,7 @@ html += `<div class="rankRow">該当なし</div>`;
 }else{
 plusRows.forEach(([name, obj], index)=>{
 const profit = obj.p - obj.b;
-html += `<div class="rankRow">${index + 1}位 ${name}　収支:<span class="good">${profit}</span>　回収率:${calcRate(obj.p,obj.b)}%</div>`;
+html += `<div class="rankRow">${index + 1}位 ${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="good">${profit}</span></div>`;
 });
 }
 
@@ -672,7 +724,7 @@ html += `<div class="rankRow">該当なし</div>`;
 }else{
 minusRows.forEach(([name, obj], index)=>{
 const profit = obj.p - obj.b;
-html += `<div class="rankRow">${index + 1}位 ${name}　収支:<span class="bad">${profit}</span>　回収率:${calcRate(obj.p,obj.b)}%</div>`;
+html += `<div class="rankRow">${index + 1}位 ${name}　投資:${obj.b} 回収:${obj.p} 回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="bad">${profit}</span></div>`;
 });
 }
 
@@ -719,6 +771,8 @@ history.innerHTML = html;
 async function loadData(){
 
 if(!user) return;
+
+saveJockeyMinBetFilter();
 
 const snap = await getDocs(query(collection(db,"bets"),orderBy("createdAt","desc")));
 
@@ -767,9 +821,13 @@ placeObj[v.place]=(placeObj[v.place]||{b:0,p:0});
 placeObj[v.place].b+=betVal;
 placeObj[v.place].p+=payVal;
 
-jockeyObj[v.jockey]=(jockeyObj[v.jockey]||{b:0,p:0});
-jockeyObj[v.jockey].b+=betVal;
-jockeyObj[v.jockey].p+=payVal;
+const jockeyNames = splitJockeyNames(v.jockey);
+jockeyNames.forEach(name=>{
+jockeyObj[name]=(jockeyObj[name]||{b:0,p:0,c:0});
+jockeyObj[name].b+=betVal;
+jockeyObj[name].p+=payVal;
+jockeyObj[name].c+=1;
+});
 
 typeObj[v.type]=(typeObj[v.type]||{b:0,p:0});
 typeObj[v.type].b+=betVal;
