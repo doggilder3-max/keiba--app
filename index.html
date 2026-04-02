@@ -110,6 +110,12 @@ button:hover {
 opacity:0.92;
 }
 
+button:disabled,
+input:disabled {
+opacity:0.6;
+cursor:not-allowed;
+}
+
 #loginBtn {
 background:#2f6fed;
 }
@@ -279,6 +285,78 @@ align-items:center;
 margin-bottom:10px;
 }
 
+.planGrid {
+display:grid;
+grid-template-columns:repeat(auto-fit, minmax(220px, 1fr));
+gap:12px;
+align-items:stretch;
+}
+
+.planCard {
+border:1px solid #ececec;
+border-radius:14px;
+padding:14px;
+background:#fafafa;
+}
+
+.planName {
+font-size:18px;
+font-weight:bold;
+margin-bottom:8px;
+}
+
+.planDesc {
+font-size:13px;
+line-height:1.7;
+color:#555;
+}
+
+.planBadge {
+display:inline-block;
+padding:6px 12px;
+border-radius:999px;
+font-size:13px;
+font-weight:bold;
+background:#eee;
+color:#333;
+}
+
+.planBadge.free {
+background:#f1f3f5;
+color:#444;
+}
+
+.planBadge.premium {
+background:#fff3bf;
+color:#7a5200;
+}
+
+.planButtonRow {
+display:flex;
+flex-wrap:wrap;
+gap:8px;
+margin-top:10px;
+}
+
+.planBtnFree {
+background:#6c757d;
+}
+
+.planBtnPremium {
+background:#b08900;
+}
+
+.lockNote {
+margin-top:10px;
+padding:10px 12px;
+border-radius:10px;
+background:#fff8db;
+font-size:13px;
+line-height:1.6;
+color:#6b5400;
+border:1px solid #f1e3a0;
+}
+
 @media (max-width: 960px) {
 .gridCol8, .gridCol6, .gridCol4 { grid-column:span 12; }
 .chartWrap, .chartWrapTall { height:280px; }
@@ -300,6 +378,37 @@ margin-bottom:10px;
 <div class="authArea">
 <button id="loginBtn">Googleログイン</button>
 <button id="logoutBtn" style="display:none;">ログアウト</button>
+</div>
+</div>
+
+<div class="card">
+<div class="sectionTitle">
+<h3>💳 プラン管理</h3>
+</div>
+
+<div class="planGrid">
+<div class="planCard">
+<div class="planName">現在のプラン</div>
+<div id="currentPlanBadge" class="planBadge free">無料プラン</div>
+<div id="planDescription" class="planDesc" style="margin-top:10px;">
+基本の収支管理・グラフ・ランキングを利用できます。
+</div>
+<div id="planLockNote" class="lockNote" style="display:none;"></div>
+</div>
+
+<div class="planCard">
+<div class="planName">テスト切り替え</div>
+<div class="planDesc">
+実決済はまだ未実装です。<br>
+今は無料 / 有料の表示差分をテストできるようにしています。<br>
+有料にすると、騎手別ランキングのフル表示・最低投資フィルタが解放されます。
+</div>
+<div class="planButtonRow">
+<button class="planBtnFree" onclick="window.setPlanOverride('free')">無料表示で確認</button>
+<button class="planBtnPremium" onclick="window.setPlanOverride('premium')">有料表示で確認</button>
+<button onclick="window.clearPlanOverride()">サーバープランに戻す</button>
+</div>
+</div>
 </div>
 </div>
 
@@ -565,10 +674,10 @@ margin-bottom:10px;
 <div class="smallControlRow">
 <span>最低投資フィルタ</span>
 <input id="jockeyMinBetFilter" type="number" value="1000" min="0" placeholder="最低投資額">
-<button onclick="loadData()">適用</button>
+<button id="jockeyFilterApplyBtn" onclick="loadData()">適用</button>
 </div>
 
-<div class="infoNote">
+<div id="jockeyInfoNote" class="infoNote">
 ※騎手別ランキング = その騎手を含むすべての買い目の成績  
 （単勝・複勝はその騎手に加算、ワイド・馬連・馬単・3連複・3連単は各騎手に投資・回収を全額加算）
 </div>
@@ -691,6 +800,7 @@ const type = document.getElementById("type");
 const filterType = document.getElementById("filterType");
 const filterMonth = document.getElementById("filterMonth");
 const jockeyMinBetFilter = document.getElementById("jockeyMinBetFilter");
+const jockeyFilterApplyBtn = document.getElementById("jockeyFilterApplyBtn");
 
 const history = document.getElementById("history");
 const placeStats = document.getElementById("placeStats");
@@ -706,9 +816,18 @@ const summaryMonthText = document.getElementById("summaryMonthText");
 const summaryYearProfit = document.getElementById("summaryYearProfit");
 const summaryYearText = document.getElementById("summaryYearText");
 
+const currentPlanBadge = document.getElementById("currentPlanBadge");
+const planDescription = document.getElementById("planDescription");
+const planLockNote = document.getElementById("planLockNote");
+const jockeyInfoNote = document.getElementById("jockeyInfoNote");
+
 let dailyProfitChartInstance = null;
 let typePieChartInstance = null;
 let placeProfitChartInstance = null;
+
+let user = null;
+let currentPlan = "free";
+let serverPlan = "free";
 
 function todayString(){
 const now = new Date();
@@ -731,6 +850,20 @@ bet.value = current + amount;
 
 window.clearBetAmount = () => {
 bet.value = "";
+};
+
+window.setPlanOverride = (plan) => {
+localStorage.setItem("keiba_plan_override", plan);
+currentPlan = resolveCurrentPlan(serverPlan);
+updatePlanUI();
+loadData();
+};
+
+window.clearPlanOverride = () => {
+localStorage.removeItem("keiba_plan_override");
+currentPlan = resolveCurrentPlan(serverPlan);
+updatePlanUI();
+loadData();
 };
 
 function restoreLastSelections(){
@@ -756,6 +889,39 @@ localStorage.setItem("keiba_last_type", type.value || "");
 
 function saveJockeyMinBetFilter(){
 localStorage.setItem("keiba_jockey_min_bet_filter", jockeyMinBetFilter.value || "0");
+}
+
+function resolveCurrentPlan(basePlan){
+const override = localStorage.getItem("keiba_plan_override");
+if(override === "free" || override === "premium"){
+return override;
+}
+return basePlan || "free";
+}
+
+function updatePlanUI(){
+const isPremium = currentPlan === "premium";
+
+currentPlanBadge.className = `planBadge ${isPremium ? "premium" : "free"}`;
+currentPlanBadge.textContent = isPremium ? "有料プラン" : "無料プラン";
+
+planDescription.innerHTML = isPremium
+? "有料プランでは、騎手別ランキングのフル表示・最低投資フィルタ・詳細な騎手分析表示を利用できます。"
+: "無料プランでは、基本の収支管理・グラフ・ランキングを利用できます。騎手別ランキングは一部のみ表示されます。";
+
+if(isPremium){
+planLockNote.style.display = "none";
+}else{
+planLockNote.style.display = "block";
+planLockNote.innerHTML = "無料プランでは、騎手別ランキングは上位のみ表示されます。有料プランでフル表示と最低投資フィルタが解放されます。";
+}
+
+jockeyMinBetFilter.disabled = !isPremium;
+jockeyFilterApplyBtn.disabled = !isPremium;
+
+jockeyInfoNote.innerHTML = isPremium
+? "※騎手別ランキング = その騎手を含むすべての買い目の成績<br>（単勝・複勝はその騎手に加算、ワイド・馬連・馬単・3連複・3連単は各騎手に投資・回収を全額加算）"
+: "※無料プランでは騎手別ランキングは上位のみ表示されます。<br>有料プランでフル表示・最低投資フィルタが解放されます。";
 }
 
 function updateRaceCategoryFields(){
@@ -854,6 +1020,7 @@ setInitialDate();
 updateRaceCategoryFields();
 updateJockeyFields();
 updateJockeyOptions();
+updatePlanUI();
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import {
@@ -861,7 +1028,7 @@ getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
 import {
-getFirestore, collection, addDoc, getDocs,
+getFirestore, collection, addDoc, getDocs, getDoc, setDoc,
 query, orderBy, deleteDoc, doc, updateDoc
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
@@ -874,22 +1041,52 @@ projectId: "keiba-dashboard-1f6c4"
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-let user = null;
+async function ensureUserPlan(u){
+const userRef = doc(db, "users", u.uid);
+const snap = await getDoc(userRef);
+
+if(!snap.exists()){
+await setDoc(userRef, {
+uid: u.uid,
+email: u.email || "",
+plan: "free",
+createdAt: new Date(),
+updatedAt: new Date()
+}, { merge: true });
+serverPlan = "free";
+return;
+}
+
+const data = snap.data() || {};
+serverPlan = data.plan || "free";
+
+await setDoc(userRef, {
+uid: u.uid,
+email: u.email || "",
+updatedAt: new Date()
+}, { merge: true });
+}
 
 loginBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
 logoutBtn.onclick = () => signOut(auth);
 
-onAuthStateChanged(auth,(u)=>{
+onAuthStateChanged(auth, async (u)=>{
 user=u;
 if(u){
 userInfo.innerText="ログイン: " + u.email;
 loginBtn.style.display="none";
 logoutBtn.style.display="inline";
+await ensureUserPlan(u);
+currentPlan = resolveCurrentPlan(serverPlan);
+updatePlanUI();
 loadData();
 }else{
 userInfo.innerText="未ログイン";
 loginBtn.style.display="inline";
 logoutBtn.style.display="none";
+serverPlan = "free";
+currentPlan = resolveCurrentPlan(serverPlan);
+updatePlanUI();
 typeStats.innerHTML = "";
 history.innerHTML = "";
 placeStats.innerHTML = "";
@@ -1099,7 +1296,8 @@ placeStats.innerHTML = html;
 }
 
 function renderJockeyStats(jockeyObj){
-const minBet = Number(jockeyMinBetFilter.value || 0);
+const isPremium = currentPlan === "premium";
+const minBet = isPremium ? Number(jockeyMinBetFilter.value || 0) : 0;
 
 const filteredRows = Object.entries(jockeyObj).filter(([,obj])=> obj.b >= minBet);
 const rateRows = [...filteredRows].sort((a,b)=>{
@@ -1112,24 +1310,28 @@ const plusRows = profitRows.filter(([,obj])=> (obj.p - obj.b) >= 0).slice(0, 10)
 const minusRows = [...filteredRows].sort((a,b)=> (a[1].p - a[1].b) - (b[1].p - b[1].b)).slice(0, 10);
 
 if(filteredRows.length === 0){
-jockeyStats.innerHTML = `データなし（最低投資:${minBet}円）`;
+jockeyStats.innerHTML = `データなし${isPremium ? `（最低投資:${minBet}円）` : ""}`;
 return;
 }
 
+const rateLimit = isPremium ? 20 : 5;
+const profitLimit = isPremium ? 20 : 5;
+
 let html = "";
 
-html += "<div><strong>回収率ランキング 上位20</strong></div>";
-rateRows.slice(0, 20).forEach(([name, obj], index)=>{
+html += `<div><strong>回収率ランキング 上位${rateLimit}</strong></div>`;
+rateRows.slice(0, rateLimit).forEach(([name, obj], index)=>{
 const profit = obj.p - obj.b;
 html += `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
 });
 
-html += "<br><div><strong>収支ランキング 上位20</strong></div>";
-profitRows.slice(0, 20).forEach(([name, obj], index)=>{
+html += `<br><div><strong>収支ランキング 上位${profitLimit}</strong></div>`;
+profitRows.slice(0, profitLimit).forEach(([name, obj], index)=>{
 const profit = obj.p - obj.b;
 html += `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
 });
 
+if(isPremium){
 html += "<br><div><strong>プラス騎手 上位10</strong></div>";
 if(plusRows.length === 0){
 html += `<div class="rankRow">該当なし</div>`;
@@ -1148,6 +1350,9 @@ minusRows.forEach(([name, obj], index)=>{
 const profit = obj.p - obj.b;
 html += `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="bad">${profit}</span></div>`;
 });
+}
+}else{
+html += `<div class="lockNote">有料プランで、プラス騎手 / マイナス騎手の詳細分析と最低投資フィルタが解放されます。</div>`;
 }
 
 jockeyStats.innerHTML = html;
