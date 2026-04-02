@@ -338,10 +338,6 @@ gap:8px;
 margin-top:10px;
 }
 
-.planBtnFree {
-background:#6c757d;
-}
-
 .planBtnPremium {
 background:#b08900;
 }
@@ -355,10 +351,6 @@ font-size:13px;
 line-height:1.6;
 color:#6b5400;
 border:1px solid #f1e3a0;
-}
-
-.exportBtn {
-background:#0b7285;
 }
 
 .exportBtnPremium {
@@ -412,16 +404,11 @@ margin-top:8px;
 </div>
 
 <div class="planCard">
-<div class="planName">プラン切り替え</div>
+<div class="planName">プレミアムプラン</div>
 <div class="planDesc">
-無料 / 有料プランの表示差分を確認できます。<br>
-プレミアム登録ボタンから決済ページへ進めます。<br>
 有料プランでは、騎手別ランキングのフル表示・最低投資フィルタ・CSV出力が利用できます。
 </div>
 <div class="planButtonRow">
-<button class="planBtnFree" onclick="window.setPlanOverride('free')">無料表示で確認</button>
-<button class="planBtnPremium" onclick="window.setPlanOverride('premium')">有料表示で確認</button>
-<button onclick="window.clearPlanOverride()">サーバープランに戻す</button>
 <button class="planBtnPremium" onclick="window.goPremiumStripe()">プレミアム登録（500円）</button>
 </div>
 </div>
@@ -854,43 +841,6 @@ window.goPremiumStripe = () => {
 window.location.href = "https://buy.stripe.com/7sYaEP34s60Hehc0qsbQY00";
 };
 
-function todayString(){
-const now = new Date();
-const y = now.getFullYear();
-const m = String(now.getMonth() + 1).padStart(2, "0");
-const d = String(now.getDate()).padStart(2, "0");
-return `${y}-${m}-${d}`;
-}
-
-function setInitialDate(){
-if(!date.value){
-date.value = todayString();
-}
-}
-
-window.addBetAmount = (amount) => {
-const current = Number(bet.value || 0);
-bet.value = current + amount;
-};
-
-window.clearBetAmount = () => {
-bet.value = "";
-};
-
-window.setPlanOverride = (plan) => {
-localStorage.setItem("keiba_plan_override", plan);
-currentPlan = resolveCurrentPlan(serverPlan);
-updatePlanUI();
-loadData();
-};
-
-window.clearPlanOverride = () => {
-localStorage.removeItem("keiba_plan_override");
-currentPlan = resolveCurrentPlan(serverPlan);
-updatePlanUI();
-loadData();
-};
-
 window.exportFilteredCsv = () => {
 if(currentPlan !== "premium"){
 alert("CSV出力は有料プラン限定です");
@@ -948,6 +898,29 @@ return `"${str.replace(/"/g, "\"\"")}"`;
 return str;
 }
 
+function todayString(){
+const now = new Date();
+const y = now.getFullYear();
+const m = String(now.getMonth() + 1).padStart(2, "0");
+const d = String(now.getDate()).padStart(2, "0");
+return `${y}-${m}-${d}`;
+}
+
+function setInitialDate(){
+if(!date.value){
+date.value = todayString();
+}
+}
+
+window.addBetAmount = (amount) => {
+const current = Number(bet.value || 0);
+bet.value = current + amount;
+};
+
+window.clearBetAmount = () => {
+bet.value = "";
+};
+
 function restoreLastSelections(){
 const lastPlace = localStorage.getItem("keiba_last_place");
 const lastType = localStorage.getItem("keiba_last_type");
@@ -971,14 +944,6 @@ localStorage.setItem("keiba_last_type", type.value || "");
 
 function saveJockeyMinBetFilter(){
 localStorage.setItem("keiba_jockey_min_bet_filter", jockeyMinBetFilter.value || "0");
-}
-
-function resolveCurrentPlan(basePlan){
-const override = localStorage.getItem("keiba_plan_override");
-if(override === "free" || override === "premium"){
-return override;
-}
-return basePlan || "free";
 }
 
 function updatePlanUI(){
@@ -1163,7 +1128,7 @@ userInfo.innerText="ログイン: " + u.email;
 loginBtn.style.display="none";
 logoutBtn.style.display="inline";
 await ensureUserPlan(u);
-currentPlan = resolveCurrentPlan(serverPlan);
+currentPlan = serverPlan || "free";
 updatePlanUI();
 loadData();
 }else{
@@ -1171,7 +1136,7 @@ userInfo.innerText="未ログイン";
 loginBtn.style.display="inline";
 logoutBtn.style.display="none";
 serverPlan = "free";
-currentPlan = resolveCurrentPlan(serverPlan);
+currentPlan = serverPlan || "free";
 updatePlanUI();
 typeStats.innerHTML = "";
 history.innerHTML = "";
