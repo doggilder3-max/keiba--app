@@ -16,7 +16,7 @@ input, select, button { padding:8px; margin:5px; }
 .bad { color:red; font-weight:bold; }
 
 .deleteBtn { background:#ff4d4d; color:#fff; border:none; padding:5px; }
-.editBtn { background:#4d79ff; color:#fff; padding:5px; }
+.editBtn { background:#4d79ff; color:#fff; border:none; padding:5px; }
 </style>
 </head>
 
@@ -37,11 +37,9 @@ input, select, button { padding:8px; margin:5px; }
 <input id="bet" type="number" placeholder="投資">
 <input id="pay" type="number" placeholder="回収">
 
-<!-- 競馬場（中央・地方分割） -->
+<!-- 競馬場（プルダウン） -->
 <select id="place">
 <option value="">競馬場選択</option>
-
-<optgroup label="中央競馬">
 <option>東京</option>
 <option>札幌</option>
 <option>函館</option>
@@ -52,26 +50,6 @@ input, select, button { padding:8px; margin:5px; }
 <option>京都</option>
 <option>阪神</option>
 <option>小倉</option>
-</optgroup>
-
-<optgroup label="地方競馬">
-<option>帯広</option>
-<option>門別</option>
-<option>盛岡</option>
-<option>水沢</option>
-<option>浦和</option>
-<option>船橋</option>
-<option>大井</option>
-<option>川崎</option>
-<option>金沢</option>
-<option>笠松</option>
-<option>名古屋</option>
-<option>園田</option>
-<option>姫路</option>
-<option>高知</option>
-<option>佐賀</option>
-</optgroup>
-
 </select>
 
 <!-- 騎手 -->
@@ -250,4 +228,3 @@ history.innerHTML=html;
 </script>
 
 </body>
-</html>
