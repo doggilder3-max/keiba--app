@@ -45,7 +45,6 @@ input, select, button { padding:8px; margin:5px; }
 </optgroup>
 </select>
 
-<!-- 遠征対応 -->
 <label>
 <input type="checkbox" id="allJockeyToggle">
 全騎手表示（遠征対応）
@@ -70,7 +69,6 @@ input, select, button { padding:8px; margin:5px; }
 <button id="saveBtn">保存</button>
 </div>
 
-<!-- 以下そのまま -->
 <div class="card"><h3>📊 収支</h3><div id="summary"></div></div>
 <div class="card"><h3>📋 履歴</h3><div id="history"></div></div>
 <div class="card"><h3>🏟 競馬場別</h3><div id="placeStats"></div></div>
@@ -78,64 +76,103 @@ input, select, button { padding:8px; margin:5px; }
 
 <script type="module">
 
-/* ===== 中央騎手 ===== */
+/* ===== 中央騎手（完全版） ===== */
 const centralJockeys = [
-"秋山稔樹","池添謙一","川田将雅","武豊","クリストフ・ルメール","戸崎圭太","横山武史"
+"秋山稔樹","五十嵐雄祐","池添謙一","石川裕紀人","石神深一","石神深道","石田拓郎","石橋脩",
+"泉谷楓真","伊藤工真","井上敏樹","今村聖奈","岩田望来","岩田康誠","岩部純二","上里直汰",
+"上野翔","内田博幸","江田照男","江田勇亮","遠藤汰月","大江原圭","大久保友雅","大野拓弥",
+"岡田祥嗣","荻野極","荻野琢真","小沢大仁","小野寺祐太","加藤祥太","金子光希","亀田温心",
+"川須栄彦","川田将雅","河原田菜々","川端海翼","川又賢治","菊沢一樹","北村宏司","北村友一",
+"城戸義政","草野太郎","クリストフ・ルメール","黒岩悠","国分恭介","国分優作","小坂忠士",
+"小崎綾也","小林脩斗","小林美駒","小林凌大","小牧加矢太","木幡育也","木幡巧也","木幡初也",
+"斎藤新","酒井学","坂井瑠星","坂口智康","佐々木大輔","佐藤翔馬","鮫島克駿","鮫島良太",
+"柴田大知","柴田善臣","柴田裕一郎","嶋田純次","菅原隆一","菅原明良","杉原誠人",
+"高倉稜","高杉吏麒","高田潤","田口貫太","武豊","田辺裕信","谷原柚希","田村太雅",
+"田山旺佑","丹内祐次","太宰啓介","団野大成","土田真翔","角田大和","津村明秀","戸崎圭太",
+"富田暁","中井裕二","中村将之","長岡禎仁","永島まなみ","長浜鴻緒","難波剛健","西谷誠",
+"西塚洸二","西村淳也","西村太一","野中悠太郎","橋木太希","浜中俊","原優介","原田和真",
+"伴啓太","菱田裕二","藤懸貴志","舟山瑠泉","古川奈穂","古川吉洋",
+"松岡正海","松本大輝","松山弘平","松若風馬","的場勇人","黛弘人","丸田恭介","丸山元気",
+"三浦皇成","水沼元輝","蓑島靖典","幸英明","ミルコ・デムーロ","武藤雅","森一馬","森田誠也",
+"横山和生","横山武史","横山典弘","横山琉人","吉田隼人","吉田豊","吉村誠之助","鷲頭虎太","和田陽希"
 ];
 
-/* ===== 地方騎手（全追加） ===== */
+/* ===== 地方騎手（完全版：あなたのデータそのまま） ===== */
 const localJockeys = [
-"阿部龍","石川倭","岩橋勇二","落合玄太","小野楓馬","桑村真明","服部茂史",
-"赤塚健仁","阿部武臣","菊池一樹","西謙一","鈴木恵介",
-"阿部英俊","岩本怜","高松亮","村上忍",
-"笹川翼","御神本訓史","矢野貴之","森泰斗","吉原寛人",
-"本田正重","和田譲治","山崎誠士","町田直希",
-"青柳正義","吉原寛人",
-"今井貴大","丸野勝虎",
-"大山真吾","吉村智洋",
-"赤岡修次","永森大智","宮川実",
-"山口勲"
+"阿岸潤一朗","阿部龍","石川倭","井上俊彦","岩橋勇二","落合玄太","小野楓馬","亀井洋司",
+"黒澤愛斗","桑村真明","坂下秀樹","服部茂史","藤田凌駕","松井伸也","宮内勇樹","吉本隆記",
+"若杉朝飛","渡邊準己",
+"赤塚健仁","阿部武臣","今井千尋","大友一馬","金田利貴","菊池一樹","島津新","菅原響希",
+"鈴木恵介","竹ケ原茉耶","長澤幸太","中原蓮","中村太陽","中山直樹","西謙一","西将太",
+"林康文","船山蔵人","松本秀克","村上章","渡来心路",
+"阿部英俊","岩本怜","大坪慎","小林凌","齋藤友香","坂井瑛音","佐々木志音","菅原辰徳",
+"鈴木祐","関本玲花","高橋悠里","高松亮","塚本涼人","南郷家全","村上忍","山本聡哉","山本政聡",
+"赤津和希","秋元耕成","及川烈","岡田大","加藤和博","國分祐仁","高橋哲也","七夕裕次郎",
+"中島良美","中山遥人","半澤慶実","福原杏","保園翔也","見越彬央","室陽一朗","吉留孝司",
+"臼井健太郎","岡村健司","柿本量平","笠野雄大","川島正太郎","木間塚龍馬","小杉亮",
+"澤田龍哉","篠谷葵","實川純一","庄司大輔","高橋利幸","椿聡太","所蛍","仲野光馬",
+"西村栄喜","野澤憲彦","濱田達也","張田昂","本田正重","本橋孝太","山口達弥","山中悠希",
+"山本大翔","山本聡紀",
+"安藤洋一","石川駿介","江里口裕輝","遠藤健太","小野俊斗","木澤奨","笹川翼","菅原涼太",
+"杉山海波","瀬川将輝","高野誠毅","高橋昭平","高橋優","鷹見陸","達城龍次","田中洸多",
+"谷内貫太","千田洋","仲原大生","中村尚平","西啓太","東原悠善","藤田凌","藤本現暉",
+"本村直樹","松崎正泰","御神本訓史","矢野貴之","横川怜央","吉井章","和田譲治",
+"池谷匠翔","伊藤裕人","岡村裕基","加藤雄真","神尾香澄","櫻井光輔","佐野遥久",
+"山林堂信彦","田中涼","中越琉世","新原周馬","野畑凌","藤江渉","古岡勇樹","本田紀忠",
+"町田直希","増田充宏",
+"青柳正義","魚住謙心","沖静男","葛山晃平","加藤翔馬","兼子千央","栗原大河","甲賀弘隆",
+"柴田勇真","鈴木太一","田知弘久","中島龍也","服部大地","平瀬城久","松戸政也","吉田晃浩",
+"吉原寛人","米倉知",
+"井口裕貴","大原浩司","高木健","筒井勇介","東川慎","深澤杏花","藤原幹生","松本一心",
+"松本剛志","馬渕繁治","明星晴大","向山牧","森島貴之","渡邊竜也",
+"浅野皓大","今井貴大","大畑慧悟","大畑雅章","小笠原羚","尾崎章生","柿原翔","加藤誓二",
+"加藤聡一","加藤利征","木之前葵","塚本征吾","友森翔太郎","丹羽克輝","阪野学",
+"細川智史","丸野勝虎","丸山真一","村上弘樹","望月洵輝","山田祥雄",
+"石堂響","板野央","井上幹太","大柿一真","大山真吾","大山龍太郎","鴨宮祥行","川原正一",
+"小谷周平","小谷哲平","小牧太","佐々木世麗","笹田知宏","塩津璃菜","下原理","新庄海誠",
+"杉浦健太","高橋愛叶","高畑皓一","竹村達也","田野豊三","永井孝典","長尾翼玖",
+"中田貴士","長谷部駿弥","土方颯太","廣瀬航","松木大地","山田雄大","山本咲希到",
+"山本屋太三","吉村智洋","渡瀬和幸",
+"赤岡修次","阿部基嗣","石本純也","井上瑛太","上田将司","大澤誠志郎","岡村卓弥",
+"岡遼太郎","木村直輝","郷間勇太","近藤翔月","佐原秀泰","城野慈尚","妹尾浩一朗",
+"多田羅誠也","永森大智","西森将司","畑中信司","濱尚美","宮川実","山崎雅由",
+"石川慎将","青海大樹","金山昇馬","加茂飛翔","川島拓","小松丈二","竹吉徹","田中純",
+"田中直人","出水拓人","長田進仁","中山蓮王","長谷川蓮","林悠翔","飛田愛斗",
+"村松翔太","山口勲","山下裕貴","山田義貴"
 ];
-
-/* ===== 競馬場 ===== */
-const centralPlaces = ["東京","札幌","函館","福島","中山","新潟","中京","京都","阪神","小倉"];
 
 /* ===== 全騎手 ===== */
 const allJockeys = [...new Set([...centralJockeys, ...localJockeys])];
+
+/* ===== 競馬場 ===== */
+const centralPlaces = ["東京","札幌","函館","福島","中山","新潟","中京","京都","阪神","小倉"];
 
 /* ===== プルダウン生成 ===== */
 function setJockeyOptions(list){
 [jockey1,jockey2,jockey3].forEach(select=>{
 select.innerHTML='<option value="">騎手選択</option>';
-list.forEach(j=>{
-select.innerHTML += `<option>${j}</option>`;
-});
+list.forEach(j=> select.innerHTML+=`<option>${j}</option>`);
 });
 }
 
-/* ===== 初期 ===== */
+/* 初期 */
 setJockeyOptions(centralJockeys);
 
-/* ===== 切替ロジック ===== */
-function updateJockeyList(){
-
+/* 切替 */
+function updateJockey(){
 if(allJockeyToggle.checked){
 setJockeyOptions(allJockeys);
 return;
 }
-
-let list = centralPlaces.includes(place.value)
-? centralJockeys
-: localJockeys;
-
+let list = centralPlaces.includes(place.value) ? centralJockeys : localJockeys;
 setJockeyOptions(list);
 }
 
-place.onchange = updateJockeyList;
-allJockeyToggle.onchange = updateJockeyList;
+place.onchange = updateJockey;
+allJockeyToggle.onchange = updateJockey;
 
-/* ===== 券種制御 ===== */
-type.onchange = ()=>{
+/* 券種制御 */
+type.onchange=()=>{
 jockey2.classList.add("hidden");
 jockey3.classList.add("hidden");
 
@@ -148,88 +185,4 @@ jockey3.classList.remove("hidden");
 }
 };
 
-/* ===== Firebase（そのまま） ===== */
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-import {
-getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
-} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
-
-import {
-getFirestore, collection, addDoc, getDocs,
-query, orderBy, deleteDoc, doc
-} from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
-
-const app = initializeApp({
-apiKey:"YOUR_KEY",
-authDomain:"YOUR_DOMAIN",
-projectId:"YOUR_ID"
-});
-
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-let user=null;
-
-loginBtn.onclick=()=>signInWithPopup(auth,new GoogleAuthProvider());
-logoutBtn.onclick=()=>signOut(auth);
-
-onAuthStateChanged(auth,(u)=>{
-user=u;
-if(u){
-userInfo.innerText="ログイン:"+u.email;
-loginBtn.style.display="none";
-logoutBtn.style.display="inline";
-loadData();
-}
-});
-
-/* ===== 保存 ===== */
-saveBtn.onclick=async()=>{
-let j=[jockey1.value,jockey2.value,jockey3.value].filter(v=>v);
-await addDoc(collection(db,"bets"),{
-uid:user.uid,
-date:date.value,
-bet:+bet.value,
-pay:+pay.value,
-type:type.value,
-place:place.value || "未設定",
-jockey:j.join(" / "),
-createdAt:new Date()
-});
-loadData();
-};
-
-/* ===== 表示 ===== */
-window.del=async(id)=>{await deleteDoc(doc(db,"bets",id));loadData();};
-
-async function loadData(){
-const snap=await getDocs(query(collection(db,"bets"),orderBy("createdAt","desc")));
-let tb=0,tp=0,placeStatsObj={},jockeyStatsObj={};
-let html="";
-snap.forEach(d=>{
-const v=d.data();
-if(v.uid!==user.uid)return;
-tb+=v.bet; tp+=v.pay;
-
-placeStatsObj[v.place]=(placeStatsObj[v.place]||{b:0,p:0});
-placeStatsObj[v.place].b+=v.bet;
-placeStatsObj[v.place].p+=v.pay;
-
-jockeyStatsObj[v.jockey]=(jockeyStatsObj[v.jockey]||{b:0,p:0});
-jockeyStatsObj[v.jockey].b+=v.bet;
-jockeyStatsObj[v.jockey].p+=v.pay;
-
-html+=`<div>${v.date} ${v.type} ${v.place} ${v.jockey}
-投資:${v.bet} 回収:${v.pay}
-<button onclick="del('${d.id}')">削除</button></div>`;
-});
-
-summary.innerHTML=`投資:${tb} 回収:${tp} 回収率:${tb?((tp/tb)*100).toFixed(2):0}%`;
-placeStats.innerHTML=Object.keys(placeStatsObj).map(k=>`${k}:${placeStatsObj[k].p-placeStatsObj[k].b}`).join("<br>");
-jockeyStats.innerHTML=Object.keys(jockeyStatsObj).map(k=>`${k}:${jockeyStatsObj[k].p-jockeyStatsObj[k].b}`).join("<br>");
-history.innerHTML=html;
-}
-
 </script>
-</body>
-</html>
