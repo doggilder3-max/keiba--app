@@ -18,15 +18,17 @@ input, select, button { padding:8px; margin:5px; cursor:pointer; }
 .good { color:green; font-weight:bold; }
 .bad { color:red; font-weight:bold; }
 
-.deleteBtn{
-  background:#ff4d4d;
-  color:white;
+.deleteBtn, .editBtn{
   border:none;
-  padding:5px 10px;
+  padding:5px 8px;
   border-radius:5px;
   cursor:pointer;
   font-size:12px;
+  margin-left:5px;
 }
+
+.deleteBtn{ background:#ff4d4d; color:#fff; }
+.editBtn{ background:#4d79ff; color:#fff; }
 </style>
 
 </head>
@@ -39,6 +41,7 @@ input, select, button { padding:8px; margin:5px; cursor:pointer; }
 <button id="loginBtn">Googleログイン</button>
 <button id="logoutBtn" style="display:none;">ログアウト</button>
 
+<!-- 入力 -->
 <div class="card">
   <h3>収支入力</h3>
 
@@ -59,52 +62,65 @@ input, select, button { padding:8px; margin:5px; cursor:pointer; }
   <button id="saveBtn">保存</button>
 </div>
 
+<!-- フィルター（追加） -->
+<div class="card">
+  <h3>🔍 フィルター</h3>
+
+  <select id="filterType">
+    <option value="all">全て</option>
+    <option>単勝</option>
+    <option>複勝</option>
+    <option>ワイド</option>
+    <option>馬連</option>
+    <option>馬単</option>
+    <option>3連複</option>
+    <option>3連単</option>
+  </select>
+
+  <input id="filterMonth" type="month">
+  <button onclick="loadData()">適用</button>
+</div>
+
+<!-- サマリー -->
 <div class="card">
   <h3>📊 収支合計</h3>
   <div id="summary"></div>
 </div>
 
+<!-- グラフ -->
 <div class="card">
   <h3>📈 収支グラフ</h3>
   <canvas id="chart"></canvas>
 </div>
 
-<!-- ★追加：履歴 -->
+<!-- 履歴 -->
 <div class="card">
   <h3>📋 履歴</h3>
   <div id="history"></div>
 </div>
 
+<!-- 月別 -->
+<div class="card">
+  <h3>🗓 月別集計</h3>
+  <div id="monthly"></div>
+</div>
+
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
-
 import {
-  getAuth,
-  signInWithPopup,
-  GoogleAuthProvider,
-  signOut,
-  onAuthStateChanged
+  getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-auth.js";
 
 import {
-  getFirestore,
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  orderBy,
-  deleteDoc,
-  doc
+  getFirestore, collection, addDoc, getDocs,
+  query, orderBy, deleteDoc, doc, updateDoc
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyA8K2ulpBeavYfDYLBhgAYax5TCrUekds8",
   authDomain: "keiba-dashboard-1f6c4.firebaseapp.com",
   projectId: "keiba-dashboard-1f6c4",
-  storageBucket: "keiba-dashboard-1f6c4.firebasestorage.app",
-  messagingSenderId: "1024448079737",
-  appId: "1:1024448079737:web:ede5a817db713189b271a8"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -115,32 +131,20 @@ let currentUser = null;
 let chartInstance = null;
 
 // =====================
-const loginBtn = document.getElementById("loginBtn");
-const logoutBtn = document.getElementById("logoutBtn");
-
-// =====================
-loginBtn.onclick = () => {
-  signInWithPopup(auth, new GoogleAuthProvider());
-};
-
-logoutBtn.onclick = () => {
-  signOut(auth);
-};
+loginBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
+logoutBtn.onclick = () => signOut(auth);
 
 // =====================
 onAuthStateChanged(auth, (user) => {
-
   currentUser = user;
 
-  const info = document.getElementById("userInfo");
-
   if (user) {
-    info.innerText = `ログイン中：${user.email}`;
+    userInfo.innerText = `ログイン中：${user.email}`;
     loginBtn.style.display = "none";
     logoutBtn.style.display = "inline-block";
     loadData();
   } else {
-    info.innerText = "未ログイン";
+    userInfo.innerText = "未ログイン";
     loginBtn.style.display = "inline-block";
     logoutBtn.style.display = "none";
   }
@@ -149,21 +153,16 @@ onAuthStateChanged(auth, (user) => {
 // =====================
 // 保存
 // =====================
-document.getElementById("saveBtn").onclick = async () => {
+saveBtn.onclick = async () => {
 
   if (!currentUser) return alert("ログインしてください");
 
-  const date = document.getElementById("date").value;
-  const bet = Number(document.getElementById("bet").value);
-  const pay = Number(document.getElementById("pay").value);
-  const type = document.getElementById("type").value;
-
-  await addDoc(collection(db, "bets"), {
+  await addDoc(collection(db,"bets"), {
     uid: currentUser.uid,
-    date,
-    bet,
-    pay,
-    type,
+    date: date.value,
+    bet: Number(bet.value),
+    pay: Number(pay.value),
+    type: type.value,
     createdAt: new Date()
   });
 
@@ -171,12 +170,30 @@ document.getElementById("saveBtn").onclick = async () => {
 };
 
 // =====================
-// ★削除機能（追加のみ）
+// 削除
 // =====================
-async function deleteData(id){
+window.del = async (id) => {
   await deleteDoc(doc(db,"bets",id));
   loadData();
-}
+};
+
+// =====================
+// 編集（追加）
+// =====================
+window.edit = async (id, v) => {
+
+  const newBet = prompt("投資額", v.bet);
+  const newPay = prompt("回収額", v.pay);
+
+  if (!newBet || !newPay) return;
+
+  await updateDoc(doc(db,"bets",id), {
+    bet: Number(newBet),
+    pay: Number(newPay)
+  });
+
+  loadData();
+};
 
 // =====================
 // データ取得
@@ -185,7 +202,10 @@ async function loadData() {
 
   if (!currentUser) return;
 
-  const q = query(collection(db, "bets"), orderBy("createdAt", "desc"));
+  const filterType = document.getElementById("filterType").value;
+  const filterMonth = document.getElementById("filterMonth").value;
+
+  const q = query(collection(db,"bets"), orderBy("createdAt","desc"));
   const snap = await getDocs(q);
 
   let totalBet = 0;
@@ -193,6 +213,8 @@ async function loadData() {
 
   let labels = [];
   let data = [];
+
+  let monthly = {};
 
   let html = "";
 
@@ -202,55 +224,67 @@ async function loadData() {
 
     if (v.uid !== currentUser.uid) return;
 
+    // フィルター（券種）
+    if (filterType !== "all" && v.type !== filterType) return;
+
+    // フィルター（月）
+    if (filterMonth && !v.date.startsWith(filterMonth)) return;
+
     totalBet += v.bet;
     totalPay += v.pay;
 
     labels.push(v.date);
     data.push(v.pay - v.bet);
 
-    // ★履歴UI追加
+    // 月別集計
+    const month = v.date?.slice(0,7);
+    if (month) {
+      if (!monthly[month]) monthly[month] = {bet:0,pay:0};
+      monthly[month].bet += v.bet;
+      monthly[month].pay += v.pay;
+    }
+
     html += `
-      <div style="border-bottom:1px solid #ddd;padding:5px;">
+      <div>
         ${v.date} | ${v.type} | 投資:${v.bet} 回収:${v.pay}
-        <button class="deleteBtn" onclick="window.del('${d.id}')">削除</button>
+        <button class="editBtn" onclick='edit("${d.id}",${JSON.stringify(v)})'>修正</button>
+        <button class="deleteBtn" onclick="del('${d.id}')">削除</button>
       </div>
     `;
   });
 
-  const recoveryRate = totalBet ? (totalPay / totalBet) * 100 : 0;
+  const rate = totalBet ? (totalPay / totalBet) * 100 : 0;
 
-  document.getElementById("summary").innerHTML = `
-    <p>総投資：${totalBet}円</p>
-    <p>総回収：${totalPay}円</p>
-    <p class="${recoveryRate >= 100 ? 'good' : 'bad'}">
-      回収率：${recoveryRate.toFixed(2)}%
-    </p>
+  summary.innerHTML = `
+    <p>総投資：${totalBet}</p>
+    <p>総回収：${totalPay}</p>
+    <p class="${rate>=100?'good':'bad'}">回収率：${rate.toFixed(2)}%</p>
   `;
 
-  document.getElementById("history").innerHTML = html;
+  history.innerHTML = html;
 
+  // グラフ
   if (chartInstance) chartInstance.destroy();
 
-  const ctx = document.getElementById("chart");
-
-  chartInstance = new Chart(ctx, {
-    type: "bar",
-    data: {
+  chartInstance = new Chart(chart, {
+    type:"bar",
+    data:{
       labels: labels.reverse(),
-      datasets: [{
-        label: "日別収支",
+      datasets:[{
+        label:"収支",
         data: data.reverse()
       }]
     }
   });
-}
 
-// グローバル削除関数
-window.del = async (id) => {
-  if (!confirm("削除しますか？")) return;
-  await deleteDoc(doc(db,"bets",id));
-  loadData();
-};
+  // 月別表示
+  let mhtml = "";
+  for (let m in monthly) {
+    const r = monthly[m].pay - monthly[m].bet;
+    mhtml += `<div>${m}：${r}円</div>`;
+  }
+  monthlyDiv.innerHTML = mhtml;
+}
 
 </script>
 
