@@ -53,7 +53,26 @@ input, select, button { padding:8px; margin:5px; }
 <button type="button" class="quickBtn" onclick="setBetAmount(5000)">5000円</button>
 </div>
 
-<input id="raceName" type="text" placeholder="レース名">
+<select id="raceCategory">
+<option>通常</option>
+<option>特別</option>
+<option>重賞</option>
+</select>
+
+<select id="raceClass">
+<option value="">クラス選択</option>
+<option>新馬</option>
+<option>未勝利</option>
+<option>1勝クラス</option>
+<option>2勝クラス</option>
+<option>3勝クラス</option>
+<option>オープン</option>
+<option>障害未勝利</option>
+<option>障害オープン</option>
+</select>
+
+<input id="raceName" type="text" placeholder="特別・重賞レース名" style="display:none;">
+
 <select id="raceNumber">
 <option value="">R選択</option>
 <option>1R</option>
@@ -68,6 +87,13 @@ input, select, button { padding:8px; margin:5px; }
 <option>10R</option>
 <option>11R</option>
 <option>12R</option>
+</select>
+
+<select id="surface">
+<option value="">芝/ダート</option>
+<option>芝</option>
+<option>ダート</option>
+<option>障害</option>
 </select>
 
 <select id="place">
@@ -244,8 +270,11 @@ const saveBtn = document.getElementById("saveBtn");
 const date = document.getElementById("date");
 const bet = document.getElementById("bet");
 const pay = document.getElementById("pay");
+const raceCategory = document.getElementById("raceCategory");
+const raceClass = document.getElementById("raceClass");
 const raceName = document.getElementById("raceName");
 const raceNumber = document.getElementById("raceNumber");
+const surface = document.getElementById("surface");
 const place = document.getElementById("place");
 const expeditionMode = document.getElementById("expeditionMode");
 const jockey1 = document.getElementById("jockey1");
@@ -297,6 +326,18 @@ localStorage.setItem("keiba_last_place", place.value || "");
 localStorage.setItem("keiba_last_type", type.value || "");
 }
 
+function updateRaceCategoryFields(){
+if(raceCategory.value === "通常"){
+raceClass.style.display = "inline";
+raceName.style.display = "none";
+raceName.value = "";
+}else{
+raceClass.style.display = "none";
+raceName.style.display = "inline";
+raceClass.value = "";
+}
+}
+
 place.onchange = () => {
 saveLastSelections();
 updateJockeyOptions();
@@ -306,6 +347,10 @@ type.onchange = () => {
 saveLastSelections();
 updateJockeyFields();
 updateJockeyOptions();
+};
+
+raceCategory.onchange = () => {
+updateRaceCategoryFields();
 };
 
 function setJockeyOptions(selectEl, jockeyList, selectedValue){
@@ -370,6 +415,7 @@ expeditionMode.onchange = updateJockeyOptions;
 
 restoreLastSelections();
 setInitialDate();
+updateRaceCategoryFields();
 updateJockeyFields();
 updateJockeyOptions();
 
@@ -436,6 +482,13 @@ return jockey1.value + " / " + jockey2.value + " / " + jockey3.value;
 return jockey1.value;
 }
 
+function buildRaceDisplayName(){
+if(raceCategory.value === "通常"){
+return raceClass.value || "";
+}
+return raceName.value || "";
+}
+
 saveBtn.onclick = async () => {
 if(!user){
 alert("ログインしてください");
@@ -454,6 +507,21 @@ return;
 
 if(pay.value === ""){
 alert("回収を入力してください");
+return;
+}
+
+if(!surface.value){
+alert("芝・ダート・障害を選択してください");
+return;
+}
+
+if(raceCategory.value === "通常" && !raceClass.value){
+alert("通常レースのクラスを選択してください");
+return;
+}
+
+if((raceCategory.value === "特別" || raceCategory.value === "重賞") && !raceName.value){
+alert("レース名を入力してください");
 return;
 }
 
@@ -481,8 +549,11 @@ bet:+bet.value,
 pay:+pay.value,
 type:type.value,
 place:place.value || "未設定",
-raceName: raceName.value || "",
+raceCategory: raceCategory.value || "",
+raceClass: raceClass.value || "",
+raceName: buildRaceDisplayName(),
 raceNumber: raceNumber.value || "",
+surface: surface.value || "",
 jockey:jockeyValue || "未設定",
 createdAt:new Date()
 });
@@ -490,7 +561,11 @@ createdAt:new Date()
 setInitialDate();
 pay.value = "";
 raceName.value = "";
+raceClass.value = "";
 raceNumber.value = "";
+surface.value = "";
+raceCategory.value = "通常";
+updateRaceCategoryFields();
 loadData();
 };
 
@@ -611,6 +686,7 @@ html += `
 <div class="raceHeader">${group.date} ${group.place}</div>
 <div class="raceSub">
 ${group.raceNumber ? group.raceNumber : ""} ${group.raceName ? group.raceName : ""}
+${group.surface ? " / " + group.surface : ""}
 投資合計:${group.totalBet} 回収合計:${group.totalPay}
 収支:<span class="${profitClass(groupProfit)}">${groupProfit}</span>
 </div>
@@ -688,7 +764,7 @@ typeObj[v.type].p+=payVal;
 const enc = encodeURIComponent(JSON.stringify(v));
 const hasRaceGroup = (v.raceName && v.raceName !== "") || (v.raceNumber && v.raceNumber !== "");
 const groupKey = hasRaceGroup
-? `${v.date || ""}__${v.place || ""}__${v.raceNumber || ""}__${v.raceName || ""}`
+? `${v.date || ""}__${v.place || ""}__${v.raceNumber || ""}__${v.raceName || ""}__${v.surface || ""}`
 : `single__${d.id}`;
 
 if(!groupsMap[groupKey]){
@@ -697,6 +773,7 @@ date: v.date || "",
 place: v.place || "未設定",
 raceNumber: v.raceNumber || "",
 raceName: v.raceName || "",
+surface: v.surface || "",
 totalBet: 0,
 totalPay: 0,
 createdAt: v.createdAt && v.createdAt.toDate ? v.createdAt.toDate().getTime() : 0,
