@@ -2,134 +2,48 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>KEIBA DASHBOARD</title>
+<title>競馬収支ダッシュボード</title>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body {
-  margin:0;
-  font-family:sans-serif;
-  background:#0f172a;
-  color:#e5e7eb;
-}
+body { font-family:sans-serif; background:#f5f5f5; padding:15px; }
 
-header {
-  padding:20px;
-  font-size:20px;
-  font-weight:bold;
-  background:#111827;
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-}
+.card { background:#fff; padding:15px; margin:10px 0; border-radius:10px; }
 
-.container {
-  padding:20px;
-  max-width:1000px;
-  margin:auto;
-}
+input, select, button { padding:8px; margin:5px; cursor:pointer; }
 
-/* KPI */
-.kpi {
-  display:grid;
-  grid-template-columns:repeat(3,1fr);
-  gap:10px;
-  margin-bottom:20px;
-}
+#userInfo { font-weight:bold; margin:10px 0; }
 
-.card {
-  background:#1f2937;
-  padding:15px;
-  border-radius:12px;
-}
-
-.kpi .value {
-  font-size:22px;
-  font-weight:bold;
-}
-
-/* 入力 */
-.input-card {
-  background:#1f2937;
-  padding:15px;
-  border-radius:12px;
-  margin-bottom:20px;
-}
-
-input, select, button {
-  padding:10px;
-  margin:5px;
-  border-radius:8px;
-  border:none;
-}
-
-/* グラフ */
-.chart-card {
-  background:#1f2937;
-  padding:15px;
-  border-radius:12px;
-}
-
-/* ボタン */
-button {
-  background:#22c55e;
-  color:white;
-  cursor:pointer;
-}
-
-button:hover {
-  opacity:0.8;
-}
-
-#userInfo {
-  font-size:12px;
-  opacity:0.8;
-}
+.good { color:green; font-weight:bold; }
+.bad { color:red; font-weight:bold; }
 </style>
+
 </head>
 
 <body>
 
-<header>
-  🏇 KEIBA DASHBOARD
-  <div id="userInfo">未ログイン</div>
-</header>
+<h2>🏇 競馬収支ダッシュボード</h2>
 
-<div class="container">
+<div id="userInfo">未ログイン</div>
 
 <button id="loginBtn">Googleログイン</button>
 <button id="logoutBtn" style="display:none;">ログアウト</button>
 
-<!-- KPI -->
-<div class="kpi">
-  <div class="card">
-    <div>総投資</div>
-    <div class="value" id="totalBet">0円</div>
-  </div>
-  <div class="card">
-    <div>総回収</div>
-    <div class="value" id="totalPay">0円</div>
-  </div>
-  <div class="card">
-    <div>回収率</div>
-    <div class="value" id="rate">0%</div>
-  </div>
-</div>
-
 <!-- 入力 -->
-<div class="input-card">
+<div class="card">
   <h3>収支入力</h3>
 
   <input id="date" type="date">
-  <input id="bet" type="number" placeholder="投資">
-  <input id="pay" type="number" placeholder="回収">
+  <input id="bet" type="number" placeholder="投資額">
+  <input id="pay" type="number" placeholder="回収額">
 
   <select id="type">
     <option>単勝</option>
     <option>複勝</option>
     <option>ワイド</option>
     <option>馬連</option>
+    <option>馬単</option>
     <option>3連複</option>
     <option>3連単</option>
   </select>
@@ -137,17 +51,22 @@ button:hover {
   <button id="saveBtn">保存</button>
 </div>
 
-<!-- グラフ -->
-<div class="chart-card">
-  <h3>収支推移</h3>
-  <canvas id="chart"></canvas>
+<!-- KPI -->
+<div class="card">
+  <h3>📊 収支サマリー</h3>
+  <div id="summary"></div>
 </div>
 
+<!-- グラフ -->
+<div class="card">
+  <h3>📈 収支推移</h3>
+  <canvas id="chart"></canvas>
 </div>
 
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
+
 import {
   getAuth,
   signInWithPopup,
@@ -165,24 +84,35 @@ import {
   orderBy
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
-const app = initializeApp({
+const firebaseConfig = {
   apiKey: "AIzaSyA8K2ulpBeavYfDYLBhgAYax5TCrUekds8",
   authDomain: "keiba-dashboard-1f6c4.firebaseapp.com",
   projectId: "keiba-dashboard-1f6c4",
-});
+};
 
+const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
 let user = null;
 let chart = null;
 
-// UI
-loginBtn.onclick = () => signInWithPopup(auth, new GoogleAuthProvider());
-logoutBtn.onclick = () => signOut(auth);
+// =====================
+// ログイン
+// =====================
+loginBtn.onclick = () => {
+  signInWithPopup(auth, new GoogleAuthProvider());
+};
 
-// auth
+logoutBtn.onclick = () => {
+  signOut(auth);
+};
+
+// =====================
+// 状態監視
+// =====================
 onAuthStateChanged(auth, (u) => {
+
   user = u;
 
   if (u) {
@@ -197,59 +127,98 @@ onAuthStateChanged(auth, (u) => {
   }
 });
 
+// =====================
 // 保存
+// =====================
 saveBtn.onclick = async () => {
+
   if (!user) return alert("ログインしてください");
 
   await addDoc(collection(db,"bets"), {
-    uid:user.uid,
-    date:date.value,
-    bet:Number(bet.value),
-    pay:Number(pay.value),
-    type:type.value,
-    createdAt:new Date()
+    uid: user.uid,
+    date: date.value,
+    bet: Number(bet.value),
+    pay: Number(pay.value),
+    type: type.value,
+    createdAt: new Date()
   });
 
   load();
 };
 
-// 読み込み
+// =====================
+// 読み込み（ここが修正ポイント）
+// =====================
 async function load() {
-  const q = query(collection(db,"bets"), orderBy("createdAt","desc"));
+
+  const q = query(collection(db,"bets"), orderBy("createdAt","asc"));
   const snap = await getDocs(q);
 
-  let tb=0,tp=0;
-  let labels=[],data=[];
+  let totalBet = 0;
+  let totalPay = 0;
 
-  snap.forEach(d=>{
-    const x=d.data();
-    if(x.uid!==user.uid) return;
+  let labels = [];
+  let cumulative = [];
+  let sum = 0;
 
-    tb+=x.bet;
-    tp+=x.pay;
+  // 券種別（意味を持たせる）
+  let typeStats = {
+    "単勝": {bet:0,pay:0},
+    "複勝": {bet:0,pay:0},
+    "ワイド": {bet:0,pay:0},
+    "馬連": {bet:0,pay:0},
+    "馬単": {bet:0,pay:0},
+    "3連複": {bet:0,pay:0},
+    "3連単": {bet:0,pay:0}
+  };
 
-    labels.push(x.date);
-    data.push(x.pay-x.bet);
+  snap.forEach(d => {
+
+    const v = d.data();
+
+    if (!user || v.uid !== user.uid) return;
+
+    totalBet += v.bet;
+    totalPay += v.pay;
+
+    // 券種別集計
+    if (typeStats[v.type]) {
+      typeStats[v.type].bet += v.bet;
+      typeStats[v.type].pay += v.pay;
+    }
+
+    // 累積収支
+    sum += (v.pay - v.bet);
+
+    labels.push(v.date);
+    cumulative.push(sum);
   });
 
-  const rate = tb ? (tp/tb)*100 : 0;
+  const rate = totalBet ? (totalPay / totalBet) * 100 : 0;
 
-  totalBet.innerText = tb+"円";
-  totalPay.innerText = tp+"円";
-  rate.innerText = rate.toFixed(1)+"%";
+  // KPI
+  summary.innerHTML = `
+    <p>総投資：${totalBet}円</p>
+    <p>総回収：${totalPay}円</p>
+    <p class="${rate >= 100 ? 'good':'bad'}">回収率：${rate.toFixed(2)}%</p>
+  `;
 
-  if(chart) chart.destroy();
+  // グラフ
+  if (chart) chart.destroy();
 
   chart = new Chart(chartCanvas, {
-    type:"line",
-    data:{
-      labels:labels.reverse(),
-      datasets:[{
-        label:"収支",
-        data:data.reverse()
+    type: "line",
+    data: {
+      labels,
+      datasets: [{
+        label: "収支推移（累積）",
+        data: cumulative,
+        tension: 0.2
       }]
     }
   });
+
+  console.log("券種別データ:", typeStats);
 }
 
 </script>
