@@ -17,6 +17,16 @@ input, select, button { padding:8px; margin:5px; cursor:pointer; }
 
 .good { color:green; font-weight:bold; }
 .bad { color:red; font-weight:bold; }
+
+.deleteBtn{
+  background:#ff4d4d;
+  color:white;
+  border:none;
+  padding:5px 10px;
+  border-radius:5px;
+  cursor:pointer;
+  font-size:12px;
+}
 </style>
 
 </head>
@@ -59,6 +69,12 @@ input, select, button { padding:8px; margin:5px; cursor:pointer; }
   <canvas id="chart"></canvas>
 </div>
 
+<!-- ★追加：履歴 -->
+<div class="card">
+  <h3>📋 履歴</h3>
+  <div id="history"></div>
+</div>
+
 <script type="module">
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
@@ -77,7 +93,9 @@ import {
   addDoc,
   getDocs,
   query,
-  orderBy
+  orderBy,
+  deleteDoc,
+  doc
 } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -97,27 +115,18 @@ let currentUser = null;
 let chartInstance = null;
 
 // =====================
-// UI
-// =====================
 const loginBtn = document.getElementById("loginBtn");
 const logoutBtn = document.getElementById("logoutBtn");
 
-// =====================
-// Googleログイン
 // =====================
 loginBtn.onclick = () => {
   signInWithPopup(auth, new GoogleAuthProvider());
 };
 
-// =====================
-// ログアウト
-// =====================
 logoutBtn.onclick = () => {
   signOut(auth);
 };
 
-// =====================
-// ログイン状態
 // =====================
 onAuthStateChanged(auth, (user) => {
 
@@ -126,18 +135,12 @@ onAuthStateChanged(auth, (user) => {
   const info = document.getElementById("userInfo");
 
   if (user) {
-
     info.innerText = `ログイン中：${user.email}`;
-
     loginBtn.style.display = "none";
     logoutBtn.style.display = "inline-block";
-
     loadData();
-
   } else {
-
     info.innerText = "未ログイン";
-
     loginBtn.style.display = "inline-block";
     logoutBtn.style.display = "none";
   }
@@ -168,6 +171,14 @@ document.getElementById("saveBtn").onclick = async () => {
 };
 
 // =====================
+// ★削除機能（追加のみ）
+// =====================
+async function deleteData(id){
+  await deleteDoc(doc(db,"bets",id));
+  loadData();
+}
+
+// =====================
 // データ取得
 // =====================
 async function loadData() {
@@ -183,17 +194,27 @@ async function loadData() {
   let labels = [];
   let data = [];
 
-  snap.forEach(doc => {
+  let html = "";
 
-    const d = doc.data();
+  snap.forEach(d => {
 
-    if (d.uid !== currentUser.uid) return;
+    const v = d.data();
 
-    totalBet += d.bet;
-    totalPay += d.pay;
+    if (v.uid !== currentUser.uid) return;
 
-    labels.push(d.date);
-    data.push(d.pay - d.bet);
+    totalBet += v.bet;
+    totalPay += v.pay;
+
+    labels.push(v.date);
+    data.push(v.pay - v.bet);
+
+    // ★履歴UI追加
+    html += `
+      <div style="border-bottom:1px solid #ddd;padding:5px;">
+        ${v.date} | ${v.type} | 投資:${v.bet} 回収:${v.pay}
+        <button class="deleteBtn" onclick="window.del('${d.id}')">削除</button>
+      </div>
+    `;
   });
 
   const recoveryRate = totalBet ? (totalPay / totalBet) * 100 : 0;
@@ -205,6 +226,8 @@ async function loadData() {
       回収率：${recoveryRate.toFixed(2)}%
     </p>
   `;
+
+  document.getElementById("history").innerHTML = html;
 
   if (chartInstance) chartInstance.destroy();
 
@@ -222,10 +245,14 @@ async function loadData() {
   });
 }
 
-</script>
+// グローバル削除関数
+window.del = async (id) => {
+  if (!confirm("削除しますか？")) return;
+  await deleteDoc(doc(db,"bets",id));
+  loadData();
+};
 
-</body>
-</html>
+</script>
 
 </body>
 </html>
