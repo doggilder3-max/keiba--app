@@ -377,7 +377,7 @@ margin-top:8px;
 
 <div class="dashboardHeader">
 <div class="headerLeft">
-<div class="headerTitle">🏇 競馬収支ダッシュボード</div>
+<div class="headerTitle">競馬収支ダッシュボード</div>
 <div class="headerSub">収支・騎手・競馬場・券種を一画面で分析</div>
 <div id="userInfo"></div>
 </div>
@@ -390,7 +390,7 @@ margin-top:8px;
 
 <div class="card">
 <div class="sectionTitle">
-<h3>💳 プラン管理</h3>
+<h3>プラン管理</h3>
 </div>
 
 <div class="planGrid">
@@ -406,7 +406,8 @@ margin-top:8px;
 <div class="planCard">
 <div class="planName">プレミアムプラン</div>
 <div class="planDesc">
-有料プランでは、騎手別ランキングのフル表示・最低投資フィルタ・CSV出力が利用できます。
+有料プランでは、騎手別ランキングのフル表示・最低投資フィルタ・CSV出力が利用できます。<br>
+プレミアム反映は手動確認のため、反映まで時間がかかる場合があります。
 </div>
 <div class="planButtonRow">
 <button class="planBtnPremium" onclick="window.goPremiumStripe()">プレミアム登録（500円）</button>
@@ -417,7 +418,7 @@ margin-top:8px;
 
 <div class="card">
 <div class="sectionTitle">
-<h3>📝 収支入力</h3>
+<h3>収支入力</h3>
 </div>
 
 <div class="inputGrid">
@@ -582,7 +583,7 @@ margin-top:8px;
 
 <div class="card">
 <div class="sectionTitle">
-<h3>🔎 フィルター</h3>
+<h3>フィルター</h3>
 </div>
 <div class="filterRow">
 <select id="filterType">
@@ -632,7 +633,7 @@ margin-top:8px;
 <div class="dashboardGrid">
 <div class="card gridCol8">
 <div class="sectionTitle">
-<h3>📉 日別収支推移</h3>
+<h3>日別収支推移</h3>
 </div>
 <div class="chartWrapTall">
 <canvas id="dailyProfitChart"></canvas>
@@ -641,7 +642,7 @@ margin-top:8px;
 
 <div class="card gridCol4">
 <div class="sectionTitle">
-<h3>🥧 券種別投資割合</h3>
+<h3>券種別投資割合</h3>
 </div>
 <div class="chartWrapTall">
 <canvas id="typePieChart"></canvas>
@@ -650,7 +651,7 @@ margin-top:8px;
 
 <div class="card gridCol6">
 <div class="sectionTitle">
-<h3>📍 競馬場別収支グラフ</h3>
+<h3>競馬場別収支グラフ</h3>
 </div>
 <div class="chartWrap">
 <canvas id="placeProfitChart"></canvas>
@@ -659,21 +660,21 @@ margin-top:8px;
 
 <div class="card gridCol6">
 <div class="sectionTitle">
-<h3>📈 券種別回収率</h3>
+<h3>券種別回収率</h3>
 </div>
 <div id="typeStats"></div>
 </div>
 
 <div class="card gridCol6">
 <div class="sectionTitle">
-<h3>🏟 競馬場別ランキング</h3>
+<h3>競馬場別ランキング</h3>
 </div>
 <div id="placeStats"></div>
 </div>
 
 <div class="card gridCol6">
 <div class="sectionTitle">
-<h3>🏇 騎手別ランキング</h3>
+<h3>騎手別ランキング</h3>
 </div>
 
 <div class="smallControlRow">
@@ -683,7 +684,7 @@ margin-top:8px;
 </div>
 
 <div id="jockeyInfoNote" class="infoNote">
-※騎手別ランキング = その騎手を含むすべての買い目の成績  
+※騎手別ランキング = その騎手を含むすべての買い目の成績
 （単勝・複勝はその騎手に加算、ワイド・馬連・馬単・3連複・3連単は各騎手に投資・回収を全額加算）
 </div>
 
@@ -692,7 +693,7 @@ margin-top:8px;
 
 <div class="card gridCol12">
 <div class="sectionTitle">
-<h3>📋 履歴（レース単位）</h3>
+<h3>履歴（レース単位）</h3>
 </div>
 <div id="history"></div>
 </div>
@@ -836,67 +837,6 @@ let user = null;
 let currentPlan = "free";
 let serverPlan = "free";
 let latestFilteredRows = [];
-
-window.goPremiumStripe = () => {
-window.location.href = "https://buy.stripe.com/7sYaEP34s60Hehc0qsbQY00";
-};
-
-window.exportFilteredCsv = () => {
-if(currentPlan !== "premium"){
-alert("CSV出力は有料プラン限定です");
-return;
-}
-
-if(!latestFilteredRows.length){
-alert("出力するデータがありません");
-return;
-}
-
-const headers = [
-"日付","投資","回収","収支","券種","競馬場","レース区分","レース名","R番号","馬場","騎手"
-];
-
-const csvRows = [
-headers.join(","),
-...latestFilteredRows.map(v => {
-const profit = Number(v.pay || 0) - Number(v.bet || 0);
-const values = [
-v.date || "",
-v.bet ?? 0,
-v.pay ?? 0,
-profit,
-v.type || "",
-v.place || "",
-v.raceCategory || "",
-v.raceName || "",
-v.raceNumber || "",
-v.surface || "",
-v.jockey || ""
-];
-return values.map(csvEscape).join(",");
-})
-];
-
-const bom = "\uFEFF";
-const blob = new Blob([bom + csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
-const url = URL.createObjectURL(blob);
-const a = document.createElement("a");
-const monthText = filterMonth.value ? filterMonth.value : "all";
-a.href = url;
-a.download = `keiba_dashboard_${monthText}.csv`;
-document.body.appendChild(a);
-a.click();
-document.body.removeChild(a);
-URL.revokeObjectURL(url);
-};
-
-function csvEscape(value){
-const str = String(value ?? "");
-if(str.includes(",") || str.includes("\"") || str.includes("\n")){
-return `"${str.replace(/"/g, "\"\"")}"`;
-}
-return str;
-}
 
 function todayString(){
 const now = new Date();
@@ -1567,12 +1507,11 @@ borderWidth: 1
 options: {
 responsive: true,
 maintainAspectRatio: false,
-indexAxis: "y",
 plugins: {
 legend: { display: true }
 },
 scales: {
-x: {
+y: {
 beginAtZero: true
 }
 }
