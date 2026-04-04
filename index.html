@@ -448,6 +448,24 @@ font-weight:bold;
 background:#f8f9fa;
 }
 
+.numberBtn.active {
+background:#222;
+color:#fff;
+border-color:#222;
+}
+
+.numberBtn.activeAxis {
+background:#e7f5ff;
+color:#1864ab;
+border-color:#74c0fc;
+}
+
+.numberBtn.activeBox {
+background:#fff3bf;
+color:#7a5200;
+border-color:#e0c25a;
+}
+
 .builderActionRow {
 display:flex;
 flex-wrap:wrap;
@@ -672,6 +690,7 @@ line-height:1.6;
           <select id="builderMode">
             <option value="normal">通常入力</option>
             <option value="axis">軸流し入力</option>
+            <option value="box">BOX入力</option>
           </select>
           <div id="builderModeNote" class="builderModeNote"></div>
         </div>
@@ -889,16 +908,19 @@ return String(value || "")
 
 function canonicalSelection(value, typeValue){
 const normalized = normalizeSelection(value);
+
 if (TYPE_PAIR.includes(typeValue)) {
 const parts = normalized.split("-");
 if (parts.length !== 2) return normalized;
 return parts.map(Number).sort((a, b) => a - b).join("-");
 }
+
 if (TYPE_TRIPLE.includes(typeValue)) {
 const parts = normalized.split("-");
 if (parts.length !== 3) return normalized;
 return parts.map(Number).sort((a, b) => a - b).join("-");
 }
+
 return normalized;
 }
 
@@ -972,6 +994,12 @@ if (TYPE_TRIPLE_ARROW.includes(typeValue)) return "1着→2着を固定 → 3着
 return "";
 }
 
+function boxModeHelpText(typeValue){
+if (TYPE_PAIR.includes(typeValue)) return "選んだ馬番からBOXを一括生成";
+if (TYPE_TRIPLE.includes(typeValue)) return "選んだ馬番から3連複BOXを一括生成";
+return "この券種ではBOX入力非対応";
+}
+
 function requiredSelectionCount(typeValue){
 if (TYPE_SINGLE.includes(typeValue)) return 1;
 if (TYPE_PAIR.includes(typeValue)) return 2;
@@ -989,6 +1017,12 @@ if (TYPE_TRIPLE_ARROW.includes(typeValue)) return 2;
 return 0;
 }
 
+function requiredBoxSelectionCount(typeValue){
+if (TYPE_PAIR.includes(typeValue)) return 2;
+if (TYPE_TRIPLE.includes(typeValue)) return 3;
+return 0;
+}
+
 function joinSelectionParts(parts, typeValue){
 if (TYPE_SINGLE.includes(typeValue)) return parts[0] || "";
 if (TYPE_PAIR.includes(typeValue)) return canonicalSelection(`${parts[0]}-${parts[1]}`, typeValue);
@@ -996,6 +1030,39 @@ if (TYPE_PAIR_ARROW.includes(typeValue)) return `${parts[0]}>${parts[1]}`;
 if (TYPE_TRIPLE.includes(typeValue)) return canonicalSelection(`${parts[0]}-${parts[1]}-${parts[2]}`, typeValue);
 if (TYPE_TRIPLE_ARROW.includes(typeValue)) return `${parts[0]}>${parts[1]}>${parts[2]}`;
 return "";
+}
+
+function combinationCount(n, r){
+if (n < r || r <= 0) return 0;
+if (r === 1) return n;
+if (r === 2) return (n * (n - 1)) / 2;
+if (r === 3) return (n * (n - 1) * (n - 2)) / 6;
+return 0;
+}
+
+function buildBoxSelections(numbers, typeValue){
+const sorted = [...numbers].map(Number).sort((a, b) => a - b).map(String);
+const result = [];
+
+if (TYPE_PAIR.includes(typeValue)) {
+for (let i = 0; i < sorted.length; i++) {
+for (let j = i + 1; j < sorted.length; j++) {
+result.push(joinSelectionParts([sorted[i], sorted[j]], typeValue));
+}
+}
+}
+
+if (TYPE_TRIPLE.includes(typeValue)) {
+for (let i = 0; i < sorted.length; i++) {
+for (let j = i + 1; j < sorted.length; j++) {
+for (let k = j + 1; k < sorted.length; k++) {
+result.push(joinSelectionParts([sorted[i], sorted[j], sorted[k]], typeValue));
+}
+}
+}
+}
+
+return result;
 }
 
 const loginBtn = byId("loginBtn");
@@ -1070,6 +1137,7 @@ let serverPlan = "free";
 let latestFilteredRows = [];
 let currentBuilderParts = [];
 let currentAxisParts = [];
+let currentBoxParts = [];
 
 window.goPremiumStripe = () => {
 window.location.href = "https://buy.stripe.com/7sYaEP34s60Hehc0qsbQY00";
@@ -1224,23 +1292,55 @@ raceClass.value = "";
 }
 }
 
+function isAxisModeAllowed(typeValue){
+return !TYPE_SINGLE.includes(typeValue);
+}
+
+function isBoxModeAllowed(typeValue){
+return TYPE_PAIR.includes(typeValue) || TYPE_TRIPLE.includes(typeValue);
+}
+
 function updateBuilderModeUI(){
-const axisAllowed = !TYPE_SINGLE.includes(type.value);
-if (!axisAllowed && builderMode.value === "axis") {
+if (!isAxisModeAllowed(type.value) && builderMode.value === "axis") {
 builderMode.value = "normal";
 }
-builderMode.disabled = !axisAllowed;
-builderModeNote.textContent = builderMode.value === "axis"
-? axisModeHelpText(type.value)
-: "通常入力は今まで通り、1点ずつ作成します";
-addCurrentBtn.style.display = builderMode.value === "axis" ? "none" : "inline-block";
-backSelectionBtn.disabled = builderMode.value === "axis" ? currentAxisParts.length === 0 : currentBuilderParts.length === 0;
+if (!isBoxModeAllowed(type.value) && builderMode.value === "box") {
+builderMode.value = "normal";
+}
+
+const axisOption = [...builderMode.options].find(v => v.value === "axis");
+const boxOption = [...builderMode.options].find(v => v.value === "box");
+axisOption.disabled = !isAxisModeAllowed(type.value);
+boxOption.disabled = !isBoxModeAllowed(type.value);
+
+if (builderMode.value === "axis") {
+builderModeNote.textContent = axisModeHelpText(type.value);
+}
+else if (builderMode.value === "box") {
+builderModeNote.textContent = boxModeHelpText(type.value);
+}
+else {
+builderModeNote.textContent = "通常入力は今まで通り、1点ずつ作成します";
+}
+
+if (builderMode.value === "axis") {
+addCurrentBtn.style.display = "none";
+}
+else if (builderMode.value === "box") {
+addCurrentBtn.style.display = "inline-block";
+addCurrentBtn.textContent = "BOXを追加";
+}
+else {
+addCurrentBtn.style.display = "inline-block";
+addCurrentBtn.textContent = "この買い目を追加";
+}
 }
 
 function updateSelectionHelp(){
 selectionHelp.textContent = selectionHelpText(type.value);
 updateBuilderModeUI();
 updateBuilderCurrent();
+updateNumberPadState();
 }
 
 function buildRaceDisplayName(){
@@ -1688,14 +1788,38 @@ const btn = document.createElement("button");
 btn.type = "button";
 btn.className = "numberBtn";
 btn.textContent = i;
+btn.dataset.value = String(i);
 btn.addEventListener("click", () => handleNumberPadClick(i));
 numberPad.appendChild(btn);
 }
+updateNumberPadState();
+}
+
+function updateNumberPadState(){
+const buttons = numberPad.querySelectorAll(".numberBtn");
+buttons.forEach(btn => {
+btn.className = "numberBtn";
+const value = btn.dataset.value;
+
+if (builderMode.value === "normal" && currentBuilderParts.includes(value)) {
+btn.classList.add("active");
+}
+else if (builderMode.value === "axis" && currentAxisParts.includes(value)) {
+btn.classList.add("activeAxis");
+}
+else if (builderMode.value === "box" && currentBoxParts.includes(value)) {
+btn.classList.add("activeBox");
+}
+});
 }
 
 function handleNumberPadClick(num){
 if(builderMode.value === "axis"){
 handleAxisNumberPadClick(num);
+return;
+}
+if(builderMode.value === "box"){
+handleBoxNumberPadClick(num);
 return;
 }
 handleNormalNumberPadClick(num);
@@ -1717,91 +1841,6 @@ appendCurrentSelectionToTextarea();
 }
 }
 
-function currentBuilderSelection(){
-if(currentBuilderParts.length === 0) return "";
-return joinSelectionParts(currentBuilderParts, type.value);
-}
-
-function currentAxisDisplay(){
-if(builderMode.value !== "axis") return "";
-if (currentAxisParts.length === 0) return "";
-if (TYPE_PAIR.includes(type.value)) return `${currentAxisParts[0]}軸`;
-if (TYPE_PAIR_ARROW.includes(type.value)) return `1着:${currentAxisParts[0]}`;
-if (TYPE_TRIPLE.includes(type.value)) return currentAxisParts.length === 1 ? `1頭目:${currentAxisParts[0]}` : `${currentAxisParts[0]}-${currentAxisParts[1]}軸`;
-if (TYPE_TRIPLE_ARROW.includes(type.value)) return currentAxisParts.length === 1 ? `1着:${currentAxisParts[0]}` : `1着:${currentAxisParts[0]} / 2着:${currentAxisParts[1]}`;
-return "";
-}
-
-function updateBuilderCurrent(){
-if(builderMode.value === "axis"){
-const axisCount = requiredAxisCount(type.value);
-const currentText = currentAxisDisplay();
-builderCurrent.textContent = currentText || "未選択";
-const remain = axisCount - currentAxisParts.length;
-if(remain > 0){
-builderNeed.textContent = `${axisModeHelpText(type.value)} / あと${remain}つ選択`;
-}else{
-builderNeed.textContent = `${axisModeHelpText(type.value)} / 相手を連続タップで追加`;
-}
-backSelectionBtn.disabled = currentAxisParts.length === 0;
-return;
-}
-
-const current = currentBuilderSelection();
-builderCurrent.textContent = current ? formatSelectionDisplay(current) : "未選択";
-
-const required = requiredSelectionCount(type.value);
-const remain = required - currentBuilderParts.length;
-
-if(remain > 0){
-builderNeed.textContent = `${builderNeedText(type.value)} / あと${remain}つ選択`;
-}else{
-builderNeed.textContent = `${builderNeedText(type.value)} / 追加可能`;
-}
-backSelectionBtn.disabled = currentBuilderParts.length === 0;
-}
-
-function clearBuilderCurrent(){
-currentBuilderParts = [];
-currentAxisParts = [];
-updateBuilderCurrent();
-}
-
-function appendSelectionValue(value){
-const normalized = canonicalSelection(value, type.value);
-if(!normalized) return;
-if(!isValidSelection(normalized, type.value)) return;
-
-const currentLines = String(selectionInput.value || "")
-.split(/[\n\r]+/)
-.map(v => canonicalSelection(v, type.value))
-.filter(Boolean);
-
-if(!currentLines.includes(normalized)){
-currentLines.push(normalized);
-selectionInput.value = currentLines.map(v => formatSelectionDisplay(v)).join("\n");
-}
-}
-
-function appendCurrentSelectionToTextarea(){
-const current = currentBuilderSelection();
-if(!current) return;
-appendSelectionValue(current);
-clearBuilderCurrent();
-}
-
-function backBuilderSelection(){
-if(builderMode.value === "axis"){
-if(currentAxisParts.length === 0) return;
-currentAxisParts.pop();
-updateBuilderCurrent();
-return;
-}
-if(currentBuilderParts.length === 0) return;
-currentBuilderParts.pop();
-updateBuilderCurrent();
-}
-
 function handleAxisNumberPadClick(num){
 const value = String(num);
 const axisCount = requiredAxisCount(type.value);
@@ -1811,7 +1850,12 @@ return;
 }
 
 if(currentAxisParts.length < axisCount){
-if(currentAxisParts.includes(value)) return;
+const idx = currentAxisParts.indexOf(value);
+if(idx >= 0){
+currentAxisParts.splice(idx, 1);
+updateBuilderCurrent();
+return;
+}
 currentAxisParts.push(value);
 updateBuilderCurrent();
 return;
@@ -1834,6 +1878,157 @@ selection = joinSelectionParts([currentAxisParts[0], currentAxisParts[1], value]
 }
 
 appendSelectionValue(selection);
+updateBuilderCurrent();
+}
+
+function handleBoxNumberPadClick(num){
+const value = String(num);
+const idx = currentBoxParts.indexOf(value);
+
+if(idx >= 0){
+currentBoxParts.splice(idx, 1);
+}else{
+currentBoxParts.push(value);
+currentBoxParts.sort((a, b) => Number(a) - Number(b));
+}
+
+updateBuilderCurrent();
+}
+
+function currentBuilderSelection(){
+if(currentBuilderParts.length === 0) return "";
+return joinSelectionParts(currentBuilderParts, type.value);
+}
+
+function currentAxisDisplay(){
+if(builderMode.value !== "axis") return "";
+if (currentAxisParts.length === 0) return "";
+if (TYPE_PAIR.includes(type.value)) return `${currentAxisParts[0]}軸`;
+if (TYPE_PAIR_ARROW.includes(type.value)) return `1着:${currentAxisParts[0]}`;
+if (TYPE_TRIPLE.includes(type.value)) return currentAxisParts.length === 1 ? `1頭目:${currentAxisParts[0]}` : `${currentAxisParts[0]}-${currentAxisParts[1]} 2頭軸`;
+if (TYPE_TRIPLE_ARROW.includes(type.value)) return currentAxisParts.length === 1 ? `1着:${currentAxisParts[0]}` : `1着:${currentAxisParts[0]} / 2着:${currentAxisParts[1]}`;
+return "";
+}
+
+function currentBoxDisplay(){
+if(builderMode.value !== "box") return "";
+if (currentBoxParts.length === 0) return "";
+return currentBoxParts.join("-");
+}
+
+function updateBuilderCurrent(){
+if(builderMode.value === "axis"){
+const axisCount = requiredAxisCount(type.value);
+const currentText = currentAxisDisplay();
+builderCurrent.textContent = currentText || "未選択";
+const remain = axisCount - currentAxisParts.length;
+
+if(remain > 0){
+builderNeed.textContent = `${axisModeHelpText(type.value)} / あと${remain}つ選択`;
+}else{
+if (TYPE_TRIPLE.includes(type.value)) {
+builderNeed.textContent = `${axisModeHelpText(type.value)} / 相手を押すたびに 2頭軸3連複 を追加`;
+}else{
+builderNeed.textContent = `${axisModeHelpText(type.value)} / 相手を連続タップで追加`;
+}
+}
+backSelectionBtn.disabled = currentAxisParts.length === 0;
+updateNumberPadState();
+return;
+}
+
+if(builderMode.value === "box"){
+const currentText = currentBoxDisplay();
+const needCount = requiredBoxSelectionCount(type.value);
+const comboCount = combinationCount(currentBoxParts.length, needCount);
+builderCurrent.textContent = currentText ? `${currentText} BOX` : "未選択";
+
+if(currentBoxParts.length < needCount){
+builderNeed.textContent = `${boxModeHelpText(type.value)} / あと${needCount - currentBoxParts.length}頭でBOX作成可能`;
+}else{
+builderNeed.textContent = `${boxModeHelpText(type.value)} / ${comboCount}点を追加可能`;
+}
+backSelectionBtn.disabled = currentBoxParts.length === 0;
+updateNumberPadState();
+return;
+}
+
+const current = currentBuilderSelection();
+builderCurrent.textContent = current ? formatSelectionDisplay(current) : "未選択";
+
+const required = requiredSelectionCount(type.value);
+const remain = required - currentBuilderParts.length;
+
+if(remain > 0){
+builderNeed.textContent = `${builderNeedText(type.value)} / あと${remain}つ選択`;
+}else{
+builderNeed.textContent = `${builderNeedText(type.value)} / 追加可能`;
+}
+backSelectionBtn.disabled = currentBuilderParts.length === 0;
+updateNumberPadState();
+}
+
+function clearBuilderCurrent(){
+currentBuilderParts = [];
+currentAxisParts = [];
+currentBoxParts = [];
+updateBuilderCurrent();
+}
+
+function appendSelectionValue(value){
+const normalized = canonicalSelection(value, type.value);
+if(!normalized) return;
+if(!isValidSelection(normalized, type.value)) return;
+
+const currentLines = String(selectionInput.value || "")
+.split(/[\n\r]+/)
+.map(v => canonicalSelection(v, type.value))
+.filter(Boolean);
+
+if(!currentLines.includes(normalized)){
+currentLines.push(normalized);
+selectionInput.value = currentLines.map(v => formatSelectionDisplay(v)).join("\n");
+}
+}
+
+function appendCurrentSelectionToTextarea(){
+if(builderMode.value === "box"){
+appendBoxSelectionsToTextarea();
+return;
+}
+
+const current = currentBuilderSelection();
+if(!current) return;
+appendSelectionValue(current);
+clearBuilderCurrent();
+}
+
+function appendBoxSelectionsToTextarea(){
+const needCount = requiredBoxSelectionCount(type.value);
+if(currentBoxParts.length < needCount) return;
+
+const selections = buildBoxSelections(currentBoxParts, type.value);
+selections.forEach(v => appendSelectionValue(v));
+clearBuilderCurrent();
+}
+
+function backBuilderSelection(){
+if(builderMode.value === "axis"){
+if(currentAxisParts.length === 0) return;
+currentAxisParts.pop();
+updateBuilderCurrent();
+return;
+}
+
+if(builderMode.value === "box"){
+if(currentBoxParts.length === 0) return;
+currentBoxParts.pop();
+updateBuilderCurrent();
+return;
+}
+
+if(currentBuilderParts.length === 0) return;
+currentBuilderParts.pop();
 updateBuilderCurrent();
 }
 
