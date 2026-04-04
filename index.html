@@ -90,19 +90,13 @@ align-items:end;
 grid-column:1 / -1;
 }
 
-input, select, button, textarea {
+input, select, button {
 padding:10px;
 margin:0;
 border-radius:10px;
 border:1px solid #d8d8d8;
 font-size:14px;
 background:#fff;
-font-family:inherit;
-}
-
-textarea {
-resize:vertical;
-min-height:90px;
 }
 
 button {
@@ -117,8 +111,7 @@ opacity:0.92;
 }
 
 button:disabled,
-input:disabled,
-textarea:disabled {
+input:disabled {
 opacity:0.6;
 cursor:not-allowed;
 }
@@ -268,7 +261,7 @@ line-height:1.6;
 }
 
 .entryRow {
-padding:8px 0;
+padding:10px 0;
 border-top:1px solid #eee;
 line-height:1.7;
 }
@@ -371,11 +364,41 @@ line-height:1.6;
 margin-top:8px;
 }
 
-.batchNote {
+.pendingBadge {
+display:inline-block;
+margin-left:8px;
+padding:4px 8px;
+border-radius:999px;
 font-size:12px;
+font-weight:bold;
+background:#f1f3f5;
+color:#555;
+}
+
+.hitBadge {
+display:inline-block;
+margin-left:8px;
+padding:4px 8px;
+border-radius:999px;
+font-size:12px;
+font-weight:bold;
+background:#d3f9d8;
+color:#2b8a3e;
+}
+
+.inputHelp {
+font-size:13px;
 color:#666;
 line-height:1.6;
-margin-top:6px;
+margin-top:8px;
+}
+
+.resultBtn {
+background:#2b8a3e;
+}
+
+.resetBtn {
+background:#868e96;
 }
 
 @media (max-width: 960px) {
@@ -447,8 +470,8 @@ margin-top:6px;
 </div>
 
 <div>
-<label>回収</label>
-<input id="pay" type="number" placeholder="回収" style="width:100%;">
+<label>払戻（あとから入力可）</label>
+<input id="pay" type="number" placeholder="未入力なら空欄のままでOK" style="width:100%;">
 </div>
 
 <div>
@@ -575,16 +598,10 @@ margin-top:6px;
 </select>
 </div>
 
-<div id="pairBatchWrap" class="inputRowWide" style="display:none;">
-<label>相手まとめ入力</label>
-<input id="pairBatchInput" type="text" placeholder="相手をカンマ区切りで入力　例：騎手A, 騎手B, 騎手C" style="width:100%;">
-<div class="batchNote">ワイド・馬連・馬単で使用。騎手1を軸に、相手をまとめて保存します。</div>
+<div class="inputRowWide">
+<div class="inputHelp">
+購入時は投資だけ入れて保存できます。結果が出たあとに履歴の「払戻入力 / 修正」から当たった買い目だけ払戻を入力してください。
 </div>
-
-<div id="tripleBatchWrap" class="inputRowWide" style="display:none;">
-<label>組み合わせまとめ入力</label>
-<textarea id="tripleBatchInput" placeholder="1行またはカンマごとに『騎手2 / 騎手3』を入力　例：騎手B / 騎手C"></textarea>
-<div class="batchNote">3連複・3連単で使用。騎手1を軸に、騎手2 / 騎手3 の組み合わせをまとめて保存します。</div>
 </div>
 
 <div class="inputRowWide">
@@ -634,25 +651,25 @@ margin-top:6px;
 <div class="summaryCard">
 <div class="summaryLabel">全体収支</div>
 <div class="summaryValue" id="summaryTotalProfit">0</div>
-<div class="summarySub" id="summaryTotalText">投資:0 / 回収:0 / 回収率:0.00%</div>
+<div class="summarySub" id="summaryTotalText">投資:0 / 払戻:0 / 回収率:0.00%</div>
 </div>
 
 <div class="summaryCard">
 <div class="summaryLabel">本日収支</div>
 <div class="summaryValue" id="summaryDayProfit">0</div>
-<div class="summarySub" id="summaryDayText">投資:0 / 回収:0 / 回収率:0.00%</div>
+<div class="summarySub" id="summaryDayText">投資:0 / 払戻:0 / 回収率:0.00%</div>
 </div>
 
 <div class="summaryCard">
 <div class="summaryLabel">今月収支</div>
 <div class="summaryValue" id="summaryMonthProfit">0</div>
-<div class="summarySub" id="summaryMonthText">投資:0 / 回収:0 / 回収率:0.00%</div>
+<div class="summarySub" id="summaryMonthText">投資:0 / 払戻:0 / 回収率:0.00%</div>
 </div>
 
 <div class="summaryCard">
 <div class="summaryLabel">年間収支</div>
 <div class="summaryValue" id="summaryYearProfit">0</div>
-<div class="summarySub" id="summaryYearText">投資:0 / 回収:0 / 回収率:0.00%</div>
+<div class="summarySub" id="summaryYearText">投資:0 / 払戻:0 / 回収率:0.00%</div>
 </div>
 </div>
 
@@ -711,7 +728,7 @@ margin-top:6px;
 
 <div id="jockeyInfoNote" class="infoNote">
 ※騎手別ランキング = その騎手を含むすべての買い目の成績
-（単勝・複勝はその騎手に加算、ワイド・馬連・馬単・3連複・3連単は各騎手に投資・回収を全額加算）
+（単勝・複勝はその騎手に加算、ワイド・馬連・馬単・3連複・3連単は各騎手に投資・払戻を全額加算）
 </div>
 
 <div id="jockeyStats"></div>
@@ -819,7 +836,7 @@ badge: "有料プラン",
 description: "有料プランでは、騎手別ランキングのフル表示・最低投資フィルタ・CSV出力を利用できます。",
 lockNote: "",
 exportNote: "現在のフィルター条件でCSV出力できます。",
-jockeyNote: "※騎手別ランキング = その騎手を含むすべての買い目の成績<br>（単勝・複勝はその騎手に加算、ワイド・馬連・馬単・3連複・3連単は各騎手に投資・回収を全額加算）"
+jockeyNote: "※騎手別ランキング = その騎手を含むすべての買い目の成績<br>（単勝・複勝はその騎手に加算、ワイド・馬連・馬単・3連複・3連単は各騎手に投資・払戻を全額加算）"
 }
 };
 
@@ -896,10 +913,6 @@ const jockey1 = byId("jockey1");
 const jockey2 = byId("jockey2");
 const jockey3 = byId("jockey3");
 const type = byId("type");
-const pairBatchWrap = byId("pairBatchWrap");
-const pairBatchInput = byId("pairBatchInput");
-const tripleBatchWrap = byId("tripleBatchWrap");
-const tripleBatchInput = byId("tripleBatchInput");
 
 const filterType = byId("filterType");
 const filterMonth = byId("filterMonth");
@@ -966,7 +979,7 @@ window.edit = async (id, vEnc) => {
 const v = JSON.parse(decodeURIComponent(vEnc));
 const b = prompt("投資", v.bet);
 if (b === null) return;
-const p = prompt("回収", v.pay);
+const p = prompt("払戻", v.pay ?? 0);
 if (p === null) return;
 
 await updateDoc(doc(db, "bets", id), {
@@ -974,6 +987,22 @@ bet: +b,
 pay: +p
 });
 
+loadData();
+};
+
+window.updateResult = async (id, currentPay = 0) => {
+const p = prompt("払戻を入力", currentPay || 0);
+if (p === null) return;
+await updateDoc(doc(db, "bets", id), {
+pay: +p
+});
+loadData();
+};
+
+window.resetResult = async (id) => {
+await updateDoc(doc(db, "bets", id), {
+pay: 0
+});
 loadData();
 };
 
@@ -1066,22 +1095,38 @@ selectEl.style.display = "none";
 selectEl.value = "";
 }
 
-function updateJockeyFields(){
+function updateJockeyFields() {
 hideAndResetJockey(jockey2);
 hideAndResetJockey(jockey3);
-pairBatchWrap.style.display = "none";
-tripleBatchWrap.style.display = "none";
 
-if(isPairType(type.value)){
+if (isPairType(type.value)) {
 jockey2.style.display = "block";
-pairBatchWrap.style.display = "block";
 }
 
-if(isTripleType(type.value)){
+if (isTripleType(type.value)) {
 jockey2.style.display = "block";
 jockey3.style.display = "block";
-tripleBatchWrap.style.display = "block";
 }
+}
+
+function buildJockeyValue() {
+if (!jockey1.value) return "";
+
+if (isSingleType(type.value)) {
+return jockey1.value;
+}
+
+if (isPairType(type.value)) {
+if (!jockey2.value) return "";
+return jockey1.value + " / " + jockey2.value;
+}
+
+if (isTripleType(type.value)) {
+if (!jockey2.value || !jockey3.value) return "";
+return jockey1.value + " / " + jockey2.value + " / " + jockey3.value;
+}
+
+return jockey1.value;
 }
 
 function buildRaceDisplayName(){
@@ -1090,116 +1135,50 @@ return raceCategory.value === "通常"
 : (raceName.value || "");
 }
 
-function normalizeText(value){
-return String(value || "").trim();
-}
-
-function parseCommaSeparatedValues(raw){
-return uniqueArray(
-String(raw || "")
-.split(/[\n\r,、，]+/)
-.map(value => normalizeText(value))
-.filter(Boolean)
-);
-}
-
-function parseTripleBatchValues(raw){
-const rows = String(raw || "")
-.split(/[\n\r,、，]+/)
-.map(value => normalizeText(value))
-.filter(Boolean);
-
-const result = [];
-
-rows.forEach(row => {
-const parts = row
-.split(/\s*(?:\/|／|-|－)\s*/)
-.map(value => normalizeText(value))
-.filter(Boolean);
-
-if(parts.length === 2){
-result.push(`${parts[0]} / ${parts[1]}`);
-}
-});
-
-return uniqueArray(result);
-}
-
-function buildJockeyValuesToSave() {
-if (!jockey1.value) return [];
-
-if (isSingleType(type.value)) {
-return [jockey1.value];
-}
-
-if (isPairType(type.value)) {
-const batchTargets = parseCommaSeparatedValues(pairBatchInput.value);
-
-if (batchTargets.length > 0) {
-return batchTargets.map(target => `${jockey1.value} / ${target}`);
-}
-
-if (!jockey2.value) return [];
-return [`${jockey1.value} / ${jockey2.value}`];
-}
-
-if (isTripleType(type.value)) {
-const batchPairs = parseTripleBatchValues(tripleBatchInput.value);
-
-if (batchPairs.length > 0) {
-return batchPairs.map(pair => `${jockey1.value} / ${pair}`);
-}
-
-if (!jockey2.value || !jockey3.value) return [];
-return [`${jockey1.value} / ${jockey2.value} / ${jockey3.value}`];
-}
-
-return [jockey1.value];
-}
-
 function validateBeforeSave(){
 if(!user){
 alert("ログインしてください");
 return false;
 }
+
 if(!date.value){
 alert("日付を入力してください");
 return false;
 }
+
 if(bet.value === ""){
 alert("投資を入力してください");
 return false;
 }
-if(pay.value === ""){
-alert("回収を入力してください");
-return false;
-}
+
 if(!surface.value){
 alert("芝・ダート・障害を選択してください");
 return false;
 }
+
 if(raceCategory.value === "通常" && !raceClass.value){
 alert("通常レースのクラスを選択してください");
 return false;
 }
+
 if((raceCategory.value === "特別" || raceCategory.value === "重賞") && !raceName.value){
 alert("レース名を入力してください");
 return false;
 }
 
-const jockeyValues = buildJockeyValuesToSave();
+const jockeyValue = buildJockeyValue();
 
-if(jockeyValues.length === 0){
-if(isSingleType(type.value)){
+if(!jockeyValue){
+if (isSingleType(type.value)) {
 alert("騎手を1人選択してください");
 return false;
 }
-if(isPairType(type.value)){
-alert("騎手2を選択するか、相手まとめ入力を入力してください");
+if (isPairType(type.value)) {
+alert("騎手を2人選択してください");
 return false;
 }
-if(isTripleType(type.value)){
-alert("騎手2・騎手3を選択するか、組み合わせまとめ入力を入力してください");
+if (isTripleType(type.value)) {
+alert("騎手を3人選択してください");
 return false;
 }
 }
@@ -1208,20 +1187,12 @@ return true;
 }
 
 function resetAfterSave(){
-setInitialDate();
 bet.value = "";
 pay.value = "";
-raceName.value = "";
-raceClass.value = "";
-raceNumber.value = "";
-surface.value = "";
-raceCategory.value = "通常";
 jockey2.value = "";
 jockey3.value = "";
-pairBatchInput.value = "";
-tripleBatchInput.value = "";
-updateRaceCategoryFields();
 updateJockeyFields();
+updateJockeyOptions();
 }
 
 function splitJockeyNames(jockeyValue){
@@ -1238,7 +1209,7 @@ jockeyValue
 function setSummaryCard(valueEl, subEl, profit, betTotal, payTotal){
 valueEl.textContent = profit;
 valueEl.className = `summaryValue ${profitClass(profit)}`;
-subEl.textContent = `投資:${betTotal} / 回収:${payTotal} / 回収率:${calcRate(payTotal, betTotal)}%`;
+subEl.textContent = `投資:${betTotal} / 払戻:${payTotal} / 回収率:${calcRate(payTotal, betTotal)}%`;
 }
 
 function clearSummaryCards(){
@@ -1250,7 +1221,7 @@ setSummaryCard(summaryYearProfit, summaryYearText, 0, 0, 0);
 
 function buildRankRowHtml(title, obj, indexText = "", extraText = ""){
 const profit = sumProfit(obj);
-return `<div class="rankRow"><strong>${indexText}${title}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%${extraText}　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
+return `<div class="rankRow"><strong>${indexText}${title}</strong><br>投資:${obj.b}　払戻:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%${extraText}　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
 }
 
 function renderTypeStats(typeObj){
@@ -1281,7 +1252,7 @@ function renderJockeyRankingSection(title, rows){
 let html = `<div><strong>${title}</strong></div>`;
 rows.forEach(([name, obj], index) => {
 const profit = sumProfit(obj);
-html += `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
+html += `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　払戻:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="${profitClass(profit)}">${profit}</span></div>`;
 });
 return html;
 }
@@ -1320,7 +1291,7 @@ html += plusRows.length === 0
 ? `<div class="rankRow">該当なし</div>`
 : plusRows.map(([name, obj], index) => {
 const profit = sumProfit(obj);
-return `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="good">${profit}</span></div>`;
+return `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　払戻:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="good">${profit}</span></div>`;
 }).join("");
 
 html += "<br><div><strong>マイナス騎手 下位10</strong></div>";
@@ -1328,13 +1299,20 @@ html += minusRows.length === 0
 ? `<div class="rankRow">該当なし</div>`
 : minusRows.map(([name, obj], index) => {
 const profit = sumProfit(obj);
-return `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　回収:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="bad">${profit}</span></div>`;
+return `<div class="rankRow"><strong>${index + 1}位 ${name}</strong><br>投資:${obj.b}　払戻:${obj.p}　回収率:${calcRate(obj.p,obj.b)}%　件数:${obj.c}　収支:<span class="bad">${profit}</span></div>`;
 }).join("");
 }else{
 html += `<div class="lockNote">有料プランで、プラス騎手 / マイナス騎手の詳細分析、最低投資フィルタ、CSV出力が解放されます。</div>`;
 }
 
 jockeyStats.innerHTML = html;
+}
+
+function buildResultBadge(item){
+if(Number(item.pay || 0) > 0){
+return `<span class="hitBadge">払戻入力済</span>`;
+}
+return `<span class="pendingBadge">結果待ち</span>`;
 }
 
 function renderHistory(groups){
@@ -1346,12 +1324,17 @@ return;
 history.innerHTML = groups.map(group => {
 const groupProfit = group.totalPay - group.totalBet;
 const itemsHtml = group.items.map(item => {
+const payValue = Number(item.pay || 0);
 return `
 <div class="entryRow">
-${item.type} ${item.jockey}<br>
-投資:${item.bet}　回収:${item.pay}
-<button onclick="window.edit('${item.id}','${item.enc}')" style="margin-left:8px;">修正</button>
+${item.type} ${item.jockey}${buildResultBadge(item)}<br>
+投資:${item.bet}　払戻:${payValue}
+<div class="quickButtonRow" style="margin-top:8px;">
+<button class="resultBtn" onclick="window.updateResult('${item.id}', ${payValue})">払戻入力 / 修正</button>
+<button class="resetBtn" onclick="window.resetResult('${item.id}')">払戻リセット</button>
+<button onclick="window.edit('${item.id}','${item.enc}')">投資/払戻修正</button>
 <button onclick="window.del('${item.id}')">削除</button>
+</div>
 </div>
 `;
 }).join("");
@@ -1362,7 +1345,7 @@ return `
 <div class="raceSub">
 ${group.raceNumber ? group.raceNumber : ""} ${group.raceName ? group.raceName : ""}
 ${group.surface ? " / " + group.surface : ""}
-<br>投資合計:${group.totalBet}　回収合計:${group.totalPay}　
+<br>投資合計:${group.totalBet}　払戻合計:${group.totalPay}　
 収支:<span class="${profitClass(groupProfit)}">${groupProfit}</span>
 </div>
 ${itemsHtml}
@@ -1578,8 +1561,8 @@ latestFilteredRows.push(v);
 filteredBet += betVal;
 filteredPay += payVal;
 
-ensureAggregate(placeObj, v.place).b += betVal;
-ensureAggregate(placeObj, v.place).p += payVal;
+ensureAggregate(placeObj, v.place || "未設定").b += betVal;
+ensureAggregate(placeObj, v.place || "未設定").p += payVal;
 
 if(v.date){
 ensureAggregate(dailyObj, v.date).b += betVal;
@@ -1703,14 +1686,11 @@ clearCharts();
 saveBtn.onclick = async () => {
 if(!validateBeforeSave()) return;
 
-const jockeyValues = buildJockeyValuesToSave();
-
-for (const jockeyValue of jockeyValues) {
 await addDoc(collection(db, "bets"), {
 uid: user.uid,
 date: date.value,
 bet: +bet.value,
-pay: +pay.value,
+pay: +(pay.value || 0),
 type: type.value,
 place: place.value || "未設定",
 raceCategory: raceCategory.value || "",
@@ -1718,10 +1698,9 @@ raceClass: raceClass.value || "",
 raceName: buildRaceDisplayName(),
 raceNumber: raceNumber.value || "",
 surface: surface.value || "",
-jockey: jockeyValue || "未設定",
+jockey: buildJockeyValue() || "未設定",
 createdAt: new Date()
 });
-}
 
 resetAfterSave();
 loadData();
