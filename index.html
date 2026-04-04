@@ -466,6 +466,12 @@ color:#7a5200;
 border-color:#e0c25a;
 }
 
+.numberBtn.activeAxisCandidate {
+background:#f8f9fa;
+color:#222;
+border:2px solid #74c0fc;
+}
+
 .builderActionRow {
 display:flex;
 flex-wrap:wrap;
@@ -500,6 +506,13 @@ align-items:center;
 font-size:12px;
 color:#666;
 line-height:1.6;
+}
+
+.axisPatternWrap {
+display:flex;
+flex-wrap:wrap;
+gap:8px;
+align-items:center;
 }
 
 @media (max-width: 960px) {
@@ -693,6 +706,14 @@ line-height:1.6;
             <option value="box">BOX入力</option>
           </select>
           <div id="builderModeNote" class="builderModeNote"></div>
+        </div>
+
+        <div id="axisPatternWrap" class="axisPatternWrap" style="display:none;">
+          <label>3連複軸タイプ</label>
+          <select id="tripleAxisMode">
+            <option value="double">2頭軸</option>
+            <option value="single">1頭軸</option>
+          </select>
         </div>
 
         <div class="builderStatus">
@@ -989,7 +1010,7 @@ function axisModeHelpText(typeValue){
 if (TYPE_SINGLE.includes(typeValue)) return "この券種では通常入力のみ";
 if (TYPE_PAIR.includes(typeValue)) return "1頭目を軸に固定 → 相手を連続タップで追加";
 if (TYPE_PAIR_ARROW.includes(typeValue)) return "1着軸を固定 → 2着候補を連続タップで追加";
-if (TYPE_TRIPLE.includes(typeValue)) return "2頭軸を固定 → 3頭目を連続タップで追加";
+if (TYPE_TRIPLE.includes(typeValue)) return "3連複は 1頭軸 / 2頭軸 を切替可能";
 if (TYPE_TRIPLE_ARROW.includes(typeValue)) return "1着→2着を固定 → 3着候補を連続タップで追加";
 return "";
 }
@@ -1012,7 +1033,9 @@ return 0;
 function requiredAxisCount(typeValue){
 if (TYPE_PAIR.includes(typeValue)) return 1;
 if (TYPE_PAIR_ARROW.includes(typeValue)) return 1;
-if (TYPE_TRIPLE.includes(typeValue)) return 2;
+if (TYPE_TRIPLE.includes(typeValue)) {
+return tripleAxisMode.value === "single" ? 1 : 2;
+}
 if (TYPE_TRIPLE_ARROW.includes(typeValue)) return 2;
 return 0;
 }
@@ -1065,6 +1088,17 @@ result.push(joinSelectionParts([sorted[i], sorted[j], sorted[k]], typeValue));
 return result;
 }
 
+function buildTripleSingleAxisSelections(axis, opponents){
+const sorted = [...opponents].map(Number).sort((a, b) => a - b).map(String);
+const result = [];
+for (let i = 0; i < sorted.length; i++) {
+for (let j = i + 1; j < sorted.length; j++) {
+result.push(joinSelectionParts([axis, sorted[i], sorted[j]], "3連複"));
+}
+}
+return result;
+}
+
 const loginBtn = byId("loginBtn");
 const logoutBtn = byId("logoutBtn");
 const userInfo = byId("userInfo");
@@ -1085,6 +1119,8 @@ const selectionHelp = byId("selectionHelp");
 
 const builderMode = byId("builderMode");
 const builderModeNote = byId("builderModeNote");
+const axisPatternWrap = byId("axisPatternWrap");
+const tripleAxisMode = byId("tripleAxisMode");
 const builderCurrent = byId("builderCurrent");
 const builderNeed = byId("builderNeed");
 const numberPad = byId("numberPad");
@@ -1137,6 +1173,7 @@ let serverPlan = "free";
 let latestFilteredRows = [];
 let currentBuilderParts = [];
 let currentAxisParts = [];
+let currentAxisOpponents = [];
 let currentBoxParts = [];
 
 window.goPremiumStripe = () => {
@@ -1300,6 +1337,10 @@ function isBoxModeAllowed(typeValue){
 return TYPE_PAIR.includes(typeValue) || TYPE_TRIPLE.includes(typeValue);
 }
 
+function shouldShowTripleAxisMode(){
+return builderMode.value === "axis" && type.value === "3連複";
+}
+
 function updateBuilderModeUI(){
 if (!isAxisModeAllowed(type.value) && builderMode.value === "axis") {
 builderMode.value = "normal";
@@ -1313,6 +1354,8 @@ const boxOption = [...builderMode.options].find(v => v.value === "box");
 axisOption.disabled = !isAxisModeAllowed(type.value);
 boxOption.disabled = !isBoxModeAllowed(type.value);
 
+axisPatternWrap.style.display = shouldShowTripleAxisMode() ? "flex" : "none";
+
 if (builderMode.value === "axis") {
 builderModeNote.textContent = axisModeHelpText(type.value);
 }
@@ -1324,7 +1367,13 @@ builderModeNote.textContent = "通常入力は今まで通り、1点ずつ作成
 }
 
 if (builderMode.value === "axis") {
-addCurrentBtn.style.display = "none";
+if (type.value === "3連複" && tripleAxisMode.value === "single") {
+addCurrentBtn.style.display = "inline-block";
+addCurrentBtn.textContent = "1頭軸流しを追加";
+} else {
+addCurrentBtn.style.display = type.value === "3連複" ? "inline-block" : "none";
+addCurrentBtn.textContent = type.value === "3連複" ? "2頭軸流しを追加" : "この買い目を追加";
+}
 }
 else if (builderMode.value === "box") {
 addCurrentBtn.style.display = "inline-block";
@@ -1804,8 +1853,12 @@ const value = btn.dataset.value;
 if (builderMode.value === "normal" && currentBuilderParts.includes(value)) {
 btn.classList.add("active");
 }
-else if (builderMode.value === "axis" && currentAxisParts.includes(value)) {
+else if (builderMode.value === "axis") {
+if (currentAxisParts.includes(value)) {
 btn.classList.add("activeAxis");
+} else if (currentAxisOpponents.includes(value)) {
+btn.classList.add("activeAxisCandidate");
+}
 }
 else if (builderMode.value === "box" && currentBoxParts.includes(value)) {
 btn.classList.add("activeBox");
@@ -1844,8 +1897,14 @@ appendCurrentSelectionToTextarea();
 function handleAxisNumberPadClick(num){
 const value = String(num);
 const axisCount = requiredAxisCount(type.value);
+
 if(axisCount === 0){
 handleNormalNumberPadClick(num);
+return;
+}
+
+if(type.value === "3連複" && tripleAxisMode.value === "single"){
+handleTripleSingleAxisClick(value);
 return;
 }
 
@@ -1863,6 +1922,18 @@ return;
 
 if(currentAxisParts.includes(value)) return;
 
+if(type.value === "3連複" && tripleAxisMode.value === "double"){
+const idx = currentAxisOpponents.indexOf(value);
+if(idx >= 0){
+currentAxisOpponents.splice(idx, 1);
+}else{
+currentAxisOpponents.push(value);
+currentAxisOpponents.sort((a, b) => Number(a) - Number(b));
+}
+updateBuilderCurrent();
+return;
+}
+
 let selection = "";
 if (TYPE_PAIR.includes(type.value)) {
 selection = joinSelectionParts([currentAxisParts[0], value], type.value);
@@ -1870,14 +1941,37 @@ selection = joinSelectionParts([currentAxisParts[0], value], type.value);
 if (TYPE_PAIR_ARROW.includes(type.value)) {
 selection = joinSelectionParts([currentAxisParts[0], value], type.value);
 }
-if (TYPE_TRIPLE.includes(type.value)) {
-selection = joinSelectionParts([currentAxisParts[0], currentAxisParts[1], value], type.value);
-}
 if (TYPE_TRIPLE_ARROW.includes(type.value)) {
 selection = joinSelectionParts([currentAxisParts[0], currentAxisParts[1], value], type.value);
 }
 
 appendSelectionValue(selection);
+updateBuilderCurrent();
+}
+
+function handleTripleSingleAxisClick(value){
+if(currentAxisParts.length < 1){
+const idx = currentAxisParts.indexOf(value);
+if(idx >= 0){
+currentAxisParts.splice(idx, 1);
+updateBuilderCurrent();
+return;
+}
+currentAxisParts = [value];
+currentAxisOpponents = [];
+updateBuilderCurrent();
+return;
+}
+
+if(currentAxisParts.includes(value)) return;
+
+const idx = currentAxisOpponents.indexOf(value);
+if(idx >= 0){
+currentAxisOpponents.splice(idx, 1);
+}else{
+currentAxisOpponents.push(value);
+currentAxisOpponents.sort((a, b) => Number(a) - Number(b));
+}
 updateBuilderCurrent();
 }
 
@@ -1903,9 +1997,19 @@ return joinSelectionParts(currentBuilderParts, type.value);
 function currentAxisDisplay(){
 if(builderMode.value !== "axis") return "";
 if (currentAxisParts.length === 0) return "";
+
 if (TYPE_PAIR.includes(type.value)) return `${currentAxisParts[0]}軸`;
 if (TYPE_PAIR_ARROW.includes(type.value)) return `1着:${currentAxisParts[0]}`;
-if (TYPE_TRIPLE.includes(type.value)) return currentAxisParts.length === 1 ? `1頭目:${currentAxisParts[0]}` : `${currentAxisParts[0]}-${currentAxisParts[1]} 2頭軸`;
+if (TYPE_TRIPLE.includes(type.value)) {
+if (tripleAxisMode.value === "single") {
+return currentAxisParts.length === 1
+? `${currentAxisParts[0]} 1頭軸 / 相手:${currentAxisOpponents.length ? currentAxisOpponents.join("-") : "未選択"}`
+: "未選択";
+}
+return currentAxisParts.length === 1
+? `1頭目:${currentAxisParts[0]}`
+: `${currentAxisParts[0]}-${currentAxisParts[1]} 2頭軸 / 相手:${currentAxisOpponents.length ? currentAxisOpponents.join("-") : "未選択"}`;
+}
 if (TYPE_TRIPLE_ARROW.includes(type.value)) return currentAxisParts.length === 1 ? `1着:${currentAxisParts[0]}` : `1着:${currentAxisParts[0]} / 2着:${currentAxisParts[1]}`;
 return "";
 }
@@ -1921,16 +2025,38 @@ if(builderMode.value === "axis"){
 const axisCount = requiredAxisCount(type.value);
 const currentText = currentAxisDisplay();
 builderCurrent.textContent = currentText || "未選択";
-const remain = axisCount - currentAxisParts.length;
 
+if (type.value === "3連複" && tripleAxisMode.value === "single") {
+if (currentAxisParts.length < 1) {
+builderNeed.textContent = "3連複1頭軸 / まず軸を1頭選択";
+} else if (currentAxisOpponents.length < 2) {
+builderNeed.textContent = `3連複1頭軸 / 相手をあと${2 - currentAxisOpponents.length}頭以上選択`;
+} else {
+builderNeed.textContent = `3連複1頭軸 / ${combinationCount(currentAxisOpponents.length, 2)}点を追加可能`;
+}
+backSelectionBtn.disabled = currentAxisParts.length === 0 && currentAxisOpponents.length === 0;
+updateNumberPadState();
+return;
+}
+
+if (type.value === "3連複" && tripleAxisMode.value === "double") {
+if (currentAxisParts.length < axisCount) {
+builderNeed.textContent = `3連複2頭軸 / あと${axisCount - currentAxisParts.length}頭選択`;
+} else if (currentAxisOpponents.length === 0) {
+builderNeed.textContent = "3連複2頭軸 / 相手を1頭以上選択";
+} else {
+builderNeed.textContent = `3連複2頭軸 / ${currentAxisOpponents.length}点を追加可能`;
+}
+backSelectionBtn.disabled = currentAxisParts.length === 0 && currentAxisOpponents.length === 0;
+updateNumberPadState();
+return;
+}
+
+const remain = axisCount - currentAxisParts.length;
 if(remain > 0){
 builderNeed.textContent = `${axisModeHelpText(type.value)} / あと${remain}つ選択`;
 }else{
-if (TYPE_TRIPLE.includes(type.value)) {
-builderNeed.textContent = `${axisModeHelpText(type.value)} / 相手を押すたびに 2頭軸3連複 を追加`;
-}else{
 builderNeed.textContent = `${axisModeHelpText(type.value)} / 相手を連続タップで追加`;
-}
 }
 backSelectionBtn.disabled = currentAxisParts.length === 0;
 updateNumberPadState();
@@ -1971,6 +2097,7 @@ updateNumberPadState();
 function clearBuilderCurrent(){
 currentBuilderParts = [];
 currentAxisParts = [];
+currentAxisOpponents = [];
 currentBoxParts = [];
 updateBuilderCurrent();
 }
@@ -1991,7 +2118,32 @@ selectionInput.value = currentLines.map(v => formatSelectionDisplay(v)).join("\n
 }
 }
 
+function appendTripleAxisSelections(){
+if (type.value !== "3連複") return;
+
+if (tripleAxisMode.value === "single") {
+if (currentAxisParts.length !== 1) return;
+if (currentAxisOpponents.length < 2) return;
+const selections = buildTripleSingleAxisSelections(currentAxisParts[0], currentAxisOpponents);
+selections.forEach(v => appendSelectionValue(v));
+clearBuilderCurrent();
+return;
+}
+
+if (currentAxisParts.length !== 2) return;
+if (currentAxisOpponents.length === 0) return;
+currentAxisOpponents.forEach(opponent => {
+appendSelectionValue(joinSelectionParts([currentAxisParts[0], currentAxisParts[1], opponent], "3連複"));
+});
+clearBuilderCurrent();
+}
+
 function appendCurrentSelectionToTextarea(){
+if(builderMode.value === "axis" && type.value === "3連複"){
+appendTripleAxisSelections();
+return;
+}
+
 if(builderMode.value === "box"){
 appendBoxSelectionsToTextarea();
 return;
@@ -2014,6 +2166,20 @@ clearBuilderCurrent();
 
 function backBuilderSelection(){
 if(builderMode.value === "axis"){
+if (type.value === "3連複") {
+if (currentAxisOpponents.length > 0) {
+currentAxisOpponents.pop();
+updateBuilderCurrent();
+return;
+}
+if (currentAxisParts.length > 0) {
+currentAxisParts.pop();
+updateBuilderCurrent();
+return;
+}
+return;
+}
+
 if(currentAxisParts.length === 0) return;
 currentAxisParts.pop();
 updateBuilderCurrent();
@@ -2143,6 +2309,11 @@ updateSelectionHelp();
 };
 
 builderMode.onchange = () => {
+clearBuilderCurrent();
+updateSelectionHelp();
+};
+
+tripleAxisMode.onchange = () => {
 clearBuilderCurrent();
 updateSelectionHelp();
 };
