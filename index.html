@@ -408,11 +408,74 @@ background:#2b8a3e;
 background:#868e96;
 }
 
+.selectionBuilderWrap {
+display:flex;
+flex-direction:column;
+gap:10px;
+margin-top:10px;
+}
+
+.builderStatus {
+padding:10px 12px;
+border:1px solid #ececec;
+border-radius:12px;
+background:#fafafa;
+font-size:14px;
+line-height:1.6;
+}
+
+.builderCurrent {
+font-weight:bold;
+font-size:18px;
+}
+
+.numberPad {
+display:grid;
+grid-template-columns:repeat(6, minmax(0, 1fr));
+gap:8px;
+}
+
+.numberBtn {
+background:#fff;
+color:#222;
+border:1px solid #ddd;
+padding:12px 0;
+font-weight:bold;
+}
+
+.numberBtn:hover {
+background:#f8f9fa;
+}
+
+.builderActionRow {
+display:flex;
+flex-wrap:wrap;
+gap:8px;
+}
+
+.builderActionBtn {
+background:#f1f3f5;
+color:#222;
+border:1px solid #ddd;
+}
+
+.builderPrimaryBtn {
+background:#222;
+color:#fff;
+}
+
+.builderPreview {
+font-size:13px;
+color:#666;
+line-height:1.6;
+}
+
 @media (max-width: 960px) {
 .gridCol8, .gridCol6, .gridCol4 { grid-column:span 12; }
 .chartWrap, .chartWrapTall { height:280px; }
 .summaryValue { font-size:24px; }
 .headerTitle { font-size:24px; }
+.numberPad { grid-template-columns:repeat(4, minmax(0, 1fr)); }
 }
 </style>
 </head>
@@ -588,6 +651,23 @@ background:#868e96;
       <label>買い目入力</label>
       <textarea id="selectionInput" placeholder=""></textarea>
       <div id="selectionHelp" class="inputHelp"></div>
+
+      <div class="selectionBuilderWrap">
+        <div class="builderStatus">
+          <div>現在入力中</div>
+          <div id="builderCurrent" class="builderCurrent">未選択</div>
+          <div id="builderNeed" class="builderPreview"></div>
+        </div>
+
+        <div id="numberPad" class="numberPad"></div>
+
+        <div class="builderActionRow">
+          <button type="button" id="backSelectionBtn" class="builderActionBtn">1つ戻る</button>
+          <button type="button" id="clearCurrentBtn" class="builderActionBtn">現在入力をクリア</button>
+          <button type="button" id="addCurrentBtn" class="builderPrimaryBtn">この買い目を追加</button>
+          <button type="button" id="clearAllSelectionsBtn" class="builderActionBtn">買い目欄を全消去</button>
+        </div>
+      </div>
     </div>
 
     <div class="inputRowWide">
@@ -819,20 +899,47 @@ return String(value || "").replace(/>/g, "→");
 
 function selectionHelpText(typeValue){
 if (TYPE_SINGLE.includes(typeValue)) {
-return "例：8　／ 複数まとめて保存する場合は改行で区切る　例：8↵11";
+return "手入力例：8　／ 複数まとめて保存する場合は改行で区切る　例：8↵11";
 }
 if (TYPE_PAIR.includes(typeValue)) {
-return "例：8-11　／ 複数まとめて保存する場合は改行で区切る　例：8-3↵8-5↵8-15";
+return "手入力例：8-11　／ 複数まとめて保存する場合は改行で区切る　例：8-3↵8-5↵8-15";
 }
 if (TYPE_PAIR_ARROW.includes(typeValue)) {
-return "例：8→11　／ 入力は 8>11 でも可。複数は改行区切り";
+return "手入力例：8→11　／ 入力は 8>11 でも可。複数は改行区切り";
 }
 if (TYPE_TRIPLE.includes(typeValue)) {
-return "例：8-11-15　／ 複数まとめて保存する場合は改行で区切る";
+return "手入力例：8-11-15　／ 複数まとめて保存する場合は改行で区切る";
 }
 if (TYPE_TRIPLE_ARROW.includes(typeValue)) {
-return "例：8→11→15　／ 入力は 8>11>15 でも可。複数は改行区切り";
+return "手入力例：8→11→15　／ 入力は 8>11>15 でも可。複数は改行区切り";
 }
+return "";
+}
+
+function builderNeedText(typeValue){
+if (TYPE_SINGLE.includes(typeValue)) return "1頭選択で1点完成";
+if (TYPE_PAIR.includes(typeValue)) return "2頭選択で1点完成";
+if (TYPE_PAIR_ARROW.includes(typeValue)) return "2頭選択で1点完成（順番あり）";
+if (TYPE_TRIPLE.includes(typeValue)) return "3頭選択で1点完成";
+if (TYPE_TRIPLE_ARROW.includes(typeValue)) return "3頭選択で1点完成（順番あり）";
+return "";
+}
+
+function requiredSelectionCount(typeValue){
+if (TYPE_SINGLE.includes(typeValue)) return 1;
+if (TYPE_PAIR.includes(typeValue)) return 2;
+if (TYPE_PAIR_ARROW.includes(typeValue)) return 2;
+if (TYPE_TRIPLE.includes(typeValue)) return 3;
+if (TYPE_TRIPLE_ARROW.includes(typeValue)) return 3;
+return 0;
+}
+
+function joinSelectionParts(parts, typeValue){
+if (TYPE_SINGLE.includes(typeValue)) return parts[0] || "";
+if (TYPE_PAIR.includes(typeValue)) return `${parts[0]}-${parts[1]}`;
+if (TYPE_PAIR_ARROW.includes(typeValue)) return `${parts[0]}>${parts[1]}`;
+if (TYPE_TRIPLE.includes(typeValue)) return `${parts[0]}-${parts[1]}-${parts[2]}`;
+if (TYPE_TRIPLE_ARROW.includes(typeValue)) return `${parts[0]}>${parts[1]}>${parts[2]}`;
 return "";
 }
 
@@ -853,6 +960,14 @@ const place = byId("place");
 const type = byId("type");
 const selectionInput = byId("selectionInput");
 const selectionHelp = byId("selectionHelp");
+
+const builderCurrent = byId("builderCurrent");
+const builderNeed = byId("builderNeed");
+const numberPad = byId("numberPad");
+const backSelectionBtn = byId("backSelectionBtn");
+const clearCurrentBtn = byId("clearCurrentBtn");
+const addCurrentBtn = byId("addCurrentBtn");
+const clearAllSelectionsBtn = byId("clearAllSelectionsBtn");
 
 const filterType = byId("filterType");
 const filterMonth = byId("filterMonth");
@@ -896,6 +1011,7 @@ let user = null;
 let currentPlan = "free";
 let serverPlan = "free";
 let latestFilteredRows = [];
+let currentBuilderParts = [];
 
 window.goPremiumStripe = () => {
 window.location.href = "https://buy.stripe.com/7sYaEP34s60Hehc0qsbQY00";
@@ -1052,6 +1168,8 @@ raceClass.value = "";
 
 function updateSelectionHelp(){
 selectionHelp.textContent = selectionHelpText(type.value);
+builderNeed.textContent = builderNeedText(type.value);
+updateBuilderCurrent();
 }
 
 function buildRaceDisplayName(){
@@ -1097,6 +1215,7 @@ function resetAfterSave(){
 bet.value = "";
 pay.value = "";
 selectionInput.value = "";
+clearBuilderCurrent();
 }
 
 function setSummaryCard(valueEl, subEl, profit, betTotal, payTotal){
@@ -1491,6 +1610,91 @@ renderSelectionStats(selectionObj);
 renderHistory(groups);
 }
 
+function createNumberPad(){
+numberPad.innerHTML = "";
+for(let i = 1; i <= 18; i++){
+const btn = document.createElement("button");
+btn.type = "button";
+btn.className = "numberBtn";
+btn.textContent = i;
+btn.addEventListener("click", () => handleNumberPadClick(i));
+numberPad.appendChild(btn);
+}
+}
+
+function handleNumberPadClick(num){
+const required = requiredSelectionCount(type.value);
+if(required === 0) return;
+
+if(currentBuilderParts.length >= required){
+currentBuilderParts = [];
+}
+
+const value = String(num);
+if(currentBuilderParts.length === 0){
+currentBuilderParts.push(value);
+}else{
+currentBuilderParts.push(value);
+}
+
+updateBuilderCurrent();
+
+if(currentBuilderParts.length === required){
+appendCurrentSelectionToTextarea();
+}
+}
+
+function currentBuilderSelection(){
+if(currentBuilderParts.length === 0) return "";
+return joinSelectionParts(currentBuilderParts, type.value);
+}
+
+function updateBuilderCurrent(){
+const current = currentBuilderSelection();
+builderCurrent.textContent = current ? formatSelectionDisplay(current) : "未選択";
+
+const required = requiredSelectionCount(type.value);
+const remain = required - currentBuilderParts.length;
+
+if(remain > 0){
+builderNeed.textContent = `${builderNeedText(type.value)} / あと${remain}つ選択`;
+}else{
+builderNeed.textContent = `${builderNeedText(type.value)} / 追加可能`;
+}
+}
+
+function clearBuilderCurrent(){
+currentBuilderParts = [];
+updateBuilderCurrent();
+}
+
+function appendCurrentSelectionToTextarea(){
+const current = currentBuilderSelection();
+if(!current) return;
+
+if(!isValidSelection(current, type.value)){
+return;
+}
+
+const currentLines = String(selectionInput.value || "")
+.split(/[\n\r]+/)
+.map(v => normalizeSelection(v))
+.filter(Boolean);
+
+if(!currentLines.includes(current)){
+currentLines.push(current);
+selectionInput.value = currentLines.map(v => formatSelectionDisplay(v)).join("\n");
+}
+
+clearBuilderCurrent();
+}
+
+function backBuilderSelection(){
+if(currentBuilderParts.length === 0) return;
+currentBuilderParts.pop();
+updateBuilderCurrent();
+}
+
 import { initializeApp } from "https://www.gstatic.com/firebasejs/12.11.0/firebase-app.js";
 import {
 getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
@@ -1597,6 +1801,7 @@ loadData();
 
 type.onchange = () => {
 saveLastSelections();
+clearBuilderCurrent();
 updateSelectionHelp();
 };
 
@@ -1604,9 +1809,18 @@ raceCategory.onchange = updateRaceCategoryFields;
 selectionMinBetFilter.onchange = saveSelectionMinBetFilter;
 place.onchange = saveLastSelections;
 
+backSelectionBtn.onclick = backBuilderSelection;
+clearCurrentBtn.onclick = clearBuilderCurrent;
+addCurrentBtn.onclick = appendCurrentSelectionToTextarea;
+clearAllSelectionsBtn.onclick = () => {
+selectionInput.value = "";
+clearBuilderCurrent();
+};
+
 restoreLastSelections();
 setInitialDate();
 updateRaceCategoryFields();
+createNumberPad();
 updateSelectionHelp();
 updatePlanUI();
 
